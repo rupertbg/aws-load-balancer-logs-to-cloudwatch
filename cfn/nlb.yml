@@ -71,7 +71,7 @@ Resources:
         - DomainName: !Ref DomainName
           HostedZoneId: !Ref HostedZoneId
 
-  HTTPSListener:
+  TLSListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
@@ -81,7 +81,7 @@ Resources:
               - TargetGroupArn: !Ref TargetGroup
       LoadBalancerArn: !Ref LoadBalancer
       Port: 443
-      Protocol: HTTPS
+      Protocol: TLS
       Certificates:
         - CertificateArn: !Ref Certificate
 
