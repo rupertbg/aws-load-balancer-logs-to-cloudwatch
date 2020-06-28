@@ -210,7 +210,6 @@ Resources:
                 Capabilities: CAPABILITY_NAMED_IAM
                 StackName: !Sub ${AWS::StackName}-alb-logs
                 TemplatePath: source::cfn/lambda.yml
-                TemplateConfiguration: source::cfn-config/lambda-alb.json
                 ParameterOverrides: !Sub |
                   {
                     "LoadBalancerName": "#{alb.Name}",
@@ -233,7 +232,6 @@ Resources:
                 Capabilities: CAPABILITY_NAMED_IAM
                 StackName: !Sub ${AWS::StackName}-nlb-logs
                 TemplatePath: source::cfn/lambda.yml
-                TemplateConfiguration: source::cfn-config/lambda-nlb.json
                 ParameterOverrides: !Sub |
                   {
                     "LoadBalancerName": "#{nlb.Name}",
