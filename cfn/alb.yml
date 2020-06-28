@@ -49,6 +49,7 @@ Resources:
             Resource: !Sub arn:aws:s3:::${LogsBucket}/AWSLogs/${AWS::AccountId}/*
 
   LoadBalancer:
+    DependsOn: LogsBucketPolicy
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
       Name: !Ref AWS::StackName
