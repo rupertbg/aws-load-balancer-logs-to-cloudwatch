@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/rupertbg/aws-load-balancer-logs-to-cloudwatch/issues"
   },
-  "homepage": "https://github.com/rupertbg/aws-load-balancer-logs-to-cloudwatch#readme"
+  "homepage": "https://github.com/rupertbg/aws-load-balancer-logs-to-cloudwatch#readme",
+  "dependencies": {
+    "aws-sdk": "^2.706.0"
+  }
 }
