@@ -7,6 +7,10 @@ Parameters:
 
   LoadBalancerType:
     Type: String
+    AllowedValues:
+      - elb
+      - alb
+      - nlb
 
   LambdaBucket:
     Type: String
