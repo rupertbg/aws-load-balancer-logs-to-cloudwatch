@@ -100,7 +100,7 @@ Resources:
 Outputs:
 
   Name:
-    Value: !Ref LoadBalancer
+    Value: !GetAtt LoadBalancer.LoadBalancerName
 
   DNSName:
     Value: !GetAtt LoadBalancer.DNSName
