@@ -1,0 +1,297 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Pipeline to deploy aws-load-balancer-logs-to-cloudwatch
+
+Parameters:
+
+  GithubOAuthDynamicReference:
+    Type: String
+    Description: Dynamic reference to Github Personal Access Token
+    Default: "{{resolve:secretsmanager:Github:SecretString:PersonalAccessToken}}"
+
+  DomainName:
+    Type: String
+
+  HostedZoneId:
+    Type: String
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+
+  Subnets:
+    Type: List<AWS::EC2::Subnet::Id>
+
+Resources:
+  PipelineBucket:
+    DependsOn: PipelineRole
+    Type: AWS::S3::Bucket
+
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Ref AWS::StackName
+      RoleArn: !GetAtt PipelineRole.Arn
+      RestartExecutionOnUpdate: true
+      ArtifactStore:
+        Type: S3
+        Location: !Ref PipelineBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: "1"
+              RunOrder: 1
+              Configuration:
+                Branch: master
+                OAuthToken: !Ref GithubOAuthDynamicReference
+                Owner: rupertbg
+                Repo: aws-load-balancer-logs-to-cloudwatch
+              OutputArtifacts:
+                - Name: source
+        - Name: Update
+          Actions:
+            - Name: CodePipeline
+              RunOrder: 1
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: "1"
+                Provider: CloudFormation
+              InputArtifacts:
+                - Name: source
+              Configuration:
+                ActionMode: REPLACE_ON_FAILURE
+                StackName: !Ref AWS::StackName
+                TemplatePath: source::cfn/test-pipeline.yml
+                Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                ParameterOverrides: 
+                  !Sub
+                    - | 
+                        {
+                          "GithubOAuthDynamicReference": "${GithubOAuthDynamicReference}",
+                          "DomainName": "${DomainName}",
+                          "HostedZoneId": "${HostedZoneId}",
+                          "VpcId": "${VpcId}",
+                          "Subnets": "${SubnetIds}"
+                        }
+                    - SubnetIds: !Join [ ',', !Ref Subnets ]
+        - Name: Build
+          Actions:
+            - Name: Lambda
+              RunOrder: 1
+              Namespace: build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: source
+        - Name: Deploy
+          Actions:
+            - Name: ELB
+              RunOrder: 1
+              Namespace: elb
+              InputArtifacts:
+                - Name: source
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                ActionMode: REPLACE_ON_FAILURE
+                Capabilities: CAPABILITY_NAMED_IAM
+                StackName: !Sub ${AWS::StackName}-elb
+                TemplatePath: source::cfn/elb.yml
+                ParameterOverrides: 
+                  !Sub
+                    - | 
+                        {
+                          "VpcId": "${VpcId}",
+                          "Subnets": "${SubnetIds}"
+                        }
+                    - SubnetIds: !Join [ ',', !Ref Subnets ]
+            - Name: ALB
+              RunOrder: 1
+              Namespace: alb
+              InputArtifacts:
+                - Name: source
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                ActionMode: REPLACE_ON_FAILURE
+                Capabilities: CAPABILITY_NAMED_IAM
+                StackName: !Sub ${AWS::StackName}-alb
+                TemplatePath: source::cfn/alb.yml
+                ParameterOverrides: 
+                  !Sub
+                    - | 
+                        {
+                          "VpcId": "${VpcId}",
+                          "Subnets": "${SubnetIds}"
+                        }
+                    - SubnetIds: !Join [ ',', !Ref Subnets ]
+            - Name: NLB
+              RunOrder: 1
+              Namespace: nlb
+              InputArtifacts:
+                - Name: source
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                ActionMode: REPLACE_ON_FAILURE
+                Capabilities: CAPABILITY_NAMED_IAM
+                StackName: !Sub ${AWS::StackName}-nlb
+                TemplatePath: source::cfn/nlb.yml
+                ParameterOverrides: 
+                  !Sub
+                    - | 
+                        {
+                          "DomainName": "${DomainName}",
+                          "HostedZoneId": "${HostedZoneId}",
+                          "VpcId": "${VpcId}",
+                          "Subnets": "${SubnetIds}"
+                        }
+                    - SubnetIds: !Join [ ',', !Ref Subnets ]
+            - Name: ELB-Logs
+              RunOrder: 2
+              InputArtifacts:
+                - Name: source
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                ActionMode: REPLACE_ON_FAILURE
+                Capabilities: CAPABILITY_NAMED_IAM
+                StackName: !Sub ${AWS::StackName}-elb-logs
+                TemplatePath: source::cfn/lambda.yml
+                ParameterOverrides: !Sub |
+                  {
+                    "LoadBalancerName": "#{elb.Name}",
+                    "LoadBalancerType": "elb",
+                    "LambdaBucket": "${PipelineBucket}",
+                    "S3FileVersion": "#{build.ObjectVersionId}"
+                  }
+            - Name: ALB-Logs
+              RunOrder: 2
+              InputArtifacts:
+                - Name: source
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                ActionMode: REPLACE_ON_FAILURE
+                Capabilities: CAPABILITY_NAMED_IAM
+                StackName: !Sub ${AWS::StackName}-alb-logs
+                TemplatePath: source::cfn/lambda.yml
+                TemplateConfiguration: source::cfn-config/lambda-alb.json
+                ParameterOverrides: !Sub |
+                  {
+                    "LoadBalancerName": "#{alb.Name}",
+                    "LoadBalancerType": "alb",
+                    "LambdaBucket": "${PipelineBucket}",
+                    "S3FileVersion": "#{build.ObjectVersionId}"
+                  }
+            - Name: NLB-Logs
+              RunOrder: 2
+              InputArtifacts:
+                - Name: source
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                ActionMode: REPLACE_ON_FAILURE
+                Capabilities: CAPABILITY_NAMED_IAM
+                StackName: !Sub ${AWS::StackName}-nlb-logs
+                TemplatePath: source::cfn/lambda.yml
+                TemplateConfiguration: source::cfn-config/lambda-nlb.json
+                ParameterOverrides: !Sub |
+                  {
+                    "LoadBalancerName": "#{nlb.Name}",
+                    "LoadBalancerType": "nlb",
+                    "LambdaBucket": "${PipelineBucket}",
+                    "S3FileVersion": "#{build.ObjectVersionId}"
+                  }
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      TimeoutInMinutes: 10
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:4.0
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: !Sub |
+          version: 0.2
+          env:
+            exported-variables:
+              - ObjectVersionId
+          phases:
+            install:
+              runtime-versions:
+                nodejs: 10
+            build:
+              commands:
+                - cd backend;
+                - npm ci;
+                - zip -r code.zip .;
+            post_build:
+              commands:
+                - du -hs *
+                - export ObjectVersionId="$(aws s3api put-object --bucket ${PipelineBucket} --key code.zip --body code.zip --output text --query VersionId)"
+
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - cloudformation.amazonaws.com
+                - codepipeline.amazonaws.com
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+
+  CodeBuildRole:
+    DependsOn: PipelineRole
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-codebuild
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action: s3:PutObject
+                Effect: Allow
+                Resource: !Sub arn:aws:s3:::${PipelineBucket}/*

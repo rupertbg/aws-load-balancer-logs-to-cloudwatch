@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+
+  LoadBalancerName:
+    Type: String
+
+  LoadBalancerType:
+    Type: String
+
+  LambdaBucket:
+    Type: String
+
+  S3FileVersion:
+    Type: String
+
+Resources:
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: /aws/${LoadBalancerType}/${LoadBalancerName}
+      RetentionInDays: 30
+
+  Lambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Timeout: 60
+      Role: !GetAtt LambdaRole.Arn
+      TracingConfig:
+        Mode: Active
+      Environment:
+        Variables:
+          LOG_GROUP_NAME: !Ref LogGroup
+          CLASSIC_ELB_MODE: 'TRUE'
+      Code:
+        S3Bucket: !Ref LambdaBucket
+        S3Key: code.zip
+        S3ObjectVersion: !Ref S3FileVersion
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      Policies:
+      - PolicyName: !Ref AWS::StackName
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - xray:PutTelemetryRecords
+                - xray:PutTraceSegments
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*:log-stream:*
