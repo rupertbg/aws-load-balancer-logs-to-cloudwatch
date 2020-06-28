@@ -24,6 +24,9 @@ Resources:
   PipelineBucket:
     DependsOn: PipelineRole
     Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
 
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
