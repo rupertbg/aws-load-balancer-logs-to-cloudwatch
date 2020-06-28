@@ -299,6 +299,20 @@ Resources:
           PolicyDocument:
             Version: 2012-10-17
             Statement:
-              - Action: s3:PutObject
+              - Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
                 Effect: Allow
                 Resource: !Sub arn:aws:s3:::${PipelineBucket}/*
+              - Action:
+                  - s3:GetBucketAcl
+                  - s3:GetBucketLocation
+                Effect: Allow
+                Resource: !Sub arn:aws:s3:::${PipelineBucket}
+              - Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+                Effect: Allow
