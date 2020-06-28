@@ -8,9 +8,9 @@ Parameters:
   LoadBalancerType:
     Type: String
     AllowedValues:
-      - elb
-      - alb
-      - nlb
+      - classic
+      - application
+      - network
 
   LambdaBucket:
     Type: String
@@ -23,7 +23,7 @@ Resources:
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties: 
-      LogGroupName: !Sub /aws/${LoadBalancerType}/${LoadBalancerName}
+      LogGroupName: !Sub /aws/elb/${LoadBalancerType}/${LoadBalancerName}
       RetentionInDays: 30
 
   Lambda:

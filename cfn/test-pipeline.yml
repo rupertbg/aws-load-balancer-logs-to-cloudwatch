@@ -191,7 +191,7 @@ Resources:
                 ParameterOverrides: !Sub |
                   {
                     "LoadBalancerName": "#{elb.Name}",
-                    "LoadBalancerType": "elb",
+                    "LoadBalancerType": "classic",
                     "LambdaBucket": "${PipelineBucket}",
                     "S3FileVersion": "#{build.ObjectVersionId}"
                   }
@@ -213,7 +213,7 @@ Resources:
                 ParameterOverrides: !Sub |
                   {
                     "LoadBalancerName": "#{alb.Name}",
-                    "LoadBalancerType": "alb",
+                    "LoadBalancerType": "application",
                     "LambdaBucket": "${PipelineBucket}",
                     "S3FileVersion": "#{build.ObjectVersionId}"
                   }
@@ -235,7 +235,7 @@ Resources:
                 ParameterOverrides: !Sub |
                   {
                     "LoadBalancerName": "#{nlb.Name}",
-                    "LoadBalancerType": "nlb",
+                    "LoadBalancerType": "network",
                     "LambdaBucket": "${PipelineBucket}",
                     "S3FileVersion": "#{build.ObjectVersionId}"
                   }
