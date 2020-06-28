@@ -49,6 +49,7 @@ Resources:
                 OAuthToken: !Ref GithubOAuthDynamicReference
                 Owner: rupertbg
                 Repo: aws-load-balancer-logs-to-cloudwatch
+                PollForSourceChanges: false
               OutputArtifacts:
                 - Name: source
         - Name: Update
