@@ -263,7 +263,7 @@ Resources:
                 nodejs: 10
             build:
               commands:
-                - cd backend;
+                - cd src;
                 - npm ci;
                 - zip -r code.zip .;
             post_build:
