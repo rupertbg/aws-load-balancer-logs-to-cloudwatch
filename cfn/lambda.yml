@@ -23,7 +23,7 @@ Resources:
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties: 
-      LogGroupName: /aws/${LoadBalancerType}/${LoadBalancerName}
+      LogGroupName: !Sub /aws/${LoadBalancerType}/${LoadBalancerName}
       RetentionInDays: 30
 
   Lambda:
