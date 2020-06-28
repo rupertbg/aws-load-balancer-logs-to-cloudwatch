@@ -63,6 +63,7 @@ Resources:
               InputArtifacts:
                 - Name: source
               Configuration:
+                RoleArn: !GetAtt PipelineRole.Arn
                 ActionMode: REPLACE_ON_FAILURE
                 StackName: !Ref AWS::StackName
                 TemplatePath: source::cfn/test-pipeline.yml
@@ -105,6 +106,7 @@ Resources:
                 Provider: CloudFormation
                 Version: "1"
               Configuration:
+                RoleArn: !GetAtt PipelineRole.Arn
                 ActionMode: REPLACE_ON_FAILURE
                 Capabilities: CAPABILITY_NAMED_IAM
                 StackName: !Sub ${AWS::StackName}-elb
@@ -128,6 +130,7 @@ Resources:
                 Provider: CloudFormation
                 Version: "1"
               Configuration:
+                RoleArn: !GetAtt PipelineRole.Arn
                 ActionMode: REPLACE_ON_FAILURE
                 Capabilities: CAPABILITY_NAMED_IAM
                 StackName: !Sub ${AWS::StackName}-alb
@@ -151,6 +154,7 @@ Resources:
                 Provider: CloudFormation
                 Version: "1"
               Configuration:
+                RoleArn: !GetAtt PipelineRole.Arn
                 ActionMode: REPLACE_ON_FAILURE
                 Capabilities: CAPABILITY_NAMED_IAM
                 StackName: !Sub ${AWS::StackName}-nlb
@@ -175,6 +179,7 @@ Resources:
                 Provider: CloudFormation
                 Version: "1"
               Configuration:
+                RoleArn: !GetAtt PipelineRole.Arn
                 ActionMode: REPLACE_ON_FAILURE
                 Capabilities: CAPABILITY_NAMED_IAM
                 StackName: !Sub ${AWS::StackName}-elb-logs
@@ -196,6 +201,7 @@ Resources:
                 Provider: CloudFormation
                 Version: "1"
               Configuration:
+                RoleArn: !GetAtt PipelineRole.Arn
                 ActionMode: REPLACE_ON_FAILURE
                 Capabilities: CAPABILITY_NAMED_IAM
                 StackName: !Sub ${AWS::StackName}-alb-logs
@@ -218,6 +224,7 @@ Resources:
                 Provider: CloudFormation
                 Version: "1"
               Configuration:
+                RoleArn: !GetAtt PipelineRole.Arn
                 ActionMode: REPLACE_ON_FAILURE
                 Capabilities: CAPABILITY_NAMED_IAM
                 StackName: !Sub ${AWS::StackName}-nlb-logs
