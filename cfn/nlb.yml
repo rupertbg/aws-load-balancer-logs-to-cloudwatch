@@ -31,12 +31,21 @@ Resources:
       Bucket: !Ref LogsBucket
       PolicyDocument:
         Statement:
-          - Sid: Allow load balancer to dump access logs
+          - Sid: AWSLogDeliveryWrite
             Effect: Allow
             Action: s3:PutObject
             Principal:
-              AWS: 783225319266
+              Service: delivery.logs.amazonaws.com
             Resource: !Sub arn:aws:s3:::${LogsBucket}/AWSLogs/${AWS::AccountId}/*
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+          - Sid: AWSLogDeliveryAclCheck
+            Effect: Allow
+            Action: s3:GetBucketAcl
+            Principal:
+              Service: delivery.logs.amazonaws.com
+            Resource: !Sub arn:aws:s3:::${LogsBucket}
 
   LoadBalancer:
     DependsOn: LogsBucketPolicy
