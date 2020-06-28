@@ -84,7 +84,7 @@ Resources:
       TargetType: ip
       Targets: 
         - AvailabilityZone: all
-          Id: 127.0.0.1
+          Id: 172.31.164.1
           Port: 443
 
 Outputs:
