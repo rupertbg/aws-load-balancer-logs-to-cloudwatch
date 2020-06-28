@@ -97,6 +97,18 @@ Resources:
           Id: 172.31.164.1
           Port: 443
 
+  DNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      AliasTarget:
+        DNSName: !GetAtt LoadBalancer.DNSName
+        EvaluateTargetHealth: false
+        HostedZoneId: !GetAtt LoadBalancer.CanonicalHostedZoneID
+      HostedZoneId: !Ref HostedZoneId
+      Comment: !Sub ${AWS::StackName} DNS record for the NLB
+      Name: !Ref DomainName
+      Type: A
+
 Outputs:
 
   Name:
