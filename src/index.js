@@ -129,6 +129,7 @@ const fieldFunctions = {
 }
 
 function readLines(batches, batch, batch_size, line) {
+    console.log(`Batch size: ${batch_size}, Number of batches: ${batches.length}`);
     let ts;
     switch (loadBalancerType) {
         case 'classic':
@@ -166,6 +167,7 @@ function readLines(batches, batch, batch_size, line) {
 }
 
 function parseLine(line) {
+    console.log('Parsing log line')
     const parsed = {}
     let x = 0
     let end = false
@@ -200,6 +202,7 @@ function parseLine(line) {
 }
 
 async function sendBatch(logEvents, sequenceToken, logStreamName) {
+    console.log(`Sending batch to ${LogStreamName}`);
     var putLogEventParams = {
         logEvents,
         logGroupName,
@@ -226,6 +229,7 @@ async function sendBatch(logEvents, sequenceToken, logStreamName) {
 
 async function sendBatches(batches, batch, sequenceToken, logStreamName) {
     batches.push(batch);
+    console.log(`Finished batching, pushing ${batches.length} batches to CloudWatch`);
     let seqToken = sequenceToken;
     for (let i = 0; i < batches.length; i++) {
         const batch = batches[i];
@@ -308,7 +312,7 @@ exports.handler = async (event, context) => {
 
     let sequenceToken = await getLogStreamSequenceToken(logStreamName);
 
-    console.log('Parsing log lines')
+    console.log('Parsing log lines');
     var batches = [];
     var batch = [];
     var batch_size = 0;
