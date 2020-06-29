@@ -11,12 +11,6 @@ const {
 const gunzipAsync = promisify(zlib.gunzip);
 
 const aws = require('aws-sdk');
-const s3 = new aws.S3({
-    apiVersion: '2006-03-01'
-});
-const cloudWatchLogs = new aws.CloudWatchLogs({
-    apiVersion: '2014-03-28'
-});
 
 //specifying the log group and the log stream name for CloudWatch Logs
 const logGroupName = process.env.LOG_GROUP_NAME;
@@ -100,6 +94,13 @@ const fields = {
 }
 
 exports.handler = async (event, context) => {
+    const s3 = new aws.S3({
+        apiVersion: '2006-03-01'
+    });
+    const cloudWatchLogs = new aws.CloudWatchLogs({
+        apiVersion: '2014-03-28'
+    });
+
     const logStreamName = context.logStreamName;
     const bucket = event.Records[0].s3.bucket.name;
     const key = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, ' '));
@@ -238,15 +239,17 @@ exports.handler = async (event, context) => {
             return 0;
         });
 
-        try {
-            console.log('Calling PutLogEvents')
-            const cwPutLogEvents = await cloudWatchLogs.putLogEvents(putLogEventParams).promise();
-            console.log(`Success in putting ${putLogEventParams.logEvents.length} events`);
-            return cwPutLogEvents.nextSequenceToken
-        } catch (err) {
-            console.log('Error during put log events: ', err, err.stack);
-            return sequenceToken;
-        }
+        console.log('Calling PutLogEvents')
+        const cwPutLogEvents = await cloudWatchLogs.putLogEvents(putLogEventParams).promise();
+        console.log(`Success in putting ${putLogEventParams.logEvents.length} events`);
+        return cwPutLogEvents.nextSequenceToken
+
+        // try {
+
+        // } catch (err) {
+        //     console.log('Error during put log events: ', err, err.stack);
+        //     return sequenceToken;
+        // }
     }
 
     async function sendBatches() {
