@@ -128,7 +128,7 @@ const fieldFunctions = {
     "backend:port": portField,
 }
 
-function readLines(line) {
+function readLines(batches, batch, batch_size, line) {
     let ts;
     switch (loadBalancerType) {
         case 'classic':
@@ -242,28 +242,35 @@ async function sendBatches(sequenceToken) {
     console.log(`Successfully put ${count} events in ${batch_count} batches`);
 }
 
-exports.handler = async (event, context) => {
-    const logStreamName = context.logStreamName;
-    const bucket = event.Records[0].s3.bucket.name;
-    const key = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, ' '));
-    console.log(bucket);
-    console.log(key);
-
-    const object = await s3.getObject({
-        Bucket: bucket,
-        Key: key,
+async function getS3Object(Bucket, Key) {
+    console.log(`Retrieving `${ Bucket }${ Key }``);
+    return await s3.getObject({
+        Bucket,
+        Key,
     }).promise();
+}
 
-    let logData;
-    if (loadBalancerType === "classic") logData = object.Body.toString('ascii')
+function unpackLogData(object) {
+    if (loadBalancerType === "classic") return object.Body.toString('ascii')
     else {
         const uncompressedLogBuffer = await gunzipAsync(object.Body);
-        logData = uncompressedLogBuffer.toString('ascii');
+        return uncompressedLogBuffer.toString('ascii');
     }
+}
 
+async function createLogGroupIfNotExists() {
+    const result = await cloudWatchLogs.describeLogGroup({
+        logGroupName,
+    }).promise();
+    if (!result.logGroups[0]) await cloudWatchLogs.createLogGroup({
+        logGroupName,
+    }).promise();
+}
+
+async function getLogStreamSequenceToken(logStreamName) {
     let currentStream;
     const cwlDescribeStreams = await cloudWatchLogs.describeLogStreams({
-        logGroupName: logGroupName,
+        logGroupName,
         logStreamNamePrefix: logStreamName
     }).promise();
 
@@ -277,10 +284,21 @@ exports.handler = async (event, context) => {
             logGroupName: logGroupName,
             logStreamNamePrefix: logStreamName
         }).promise();
-        currentStream = cwlDescribeCreatedStream.logStreams[0]
+        currentStream = cwlDescribeCreatedStream.logStreams[0];
     }
+    
+    return currentStream.uploadSequenceToken;
+}
 
-    let sequenceToken = currentStream.uploadSequenceToken
+exports.handler = async (event, context) => {
+    const logStreamName = context.logStreamName;
+    const bucket = event.Records[0].s3.bucket.name;
+    const key = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, ' '));
+    const object = await getS3Object(bucket, key);
+    const logData = unpackLogData(object);
+    await createLogGroupIfNotExists();
+
+    let sequenceToken = await getLogStreamSequenceToken(logStreamName);
 
     var batches = [];
     var batch = [];
@@ -292,6 +310,6 @@ exports.handler = async (event, context) => {
         input: bufferStream
     });
 
-    rl.on('line', readLines);
-    rl.on('close', sendBatches);
+    rl.on('line', (line) => readLines(batches, batch, batch_size, line));
+    rl.on('close', () => sendBatches(sequenceToken));
 };
