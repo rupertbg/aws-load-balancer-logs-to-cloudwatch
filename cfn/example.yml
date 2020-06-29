@@ -198,6 +198,7 @@ Resources:
   LogsBucket:
     Type: AWS::S3::Bucket
     Properties:
+      BucketName: !Ref AWS::StackName
       LifecycleConfiguration:
         Rules:
           - Status: Enabled
@@ -247,7 +248,7 @@ Resources:
       FunctionName: !Ref Lambda
       Action: lambda:InvokeFunction
       Principal: s3.amazonaws.com
-      SourceArn: !Sub arn:aws:s3:::${LogsBucket}
+      SourceArn: !Sub arn:aws:s3:::${AWS::StackName}
 
   Lambda:
     Type: AWS::Lambda::Function
