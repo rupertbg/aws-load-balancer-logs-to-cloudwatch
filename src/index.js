@@ -221,7 +221,7 @@ exports.handler = async (event, context) => {
         return parsed
     }
 
-    async function sendBatch(logEvents) {
+    async function sendBatch(logEvents, sequenceToken) {
         console.log(`Sending batch to ${logStreamName}`);
         var putLogEventParams = {
             logEvents,
@@ -247,18 +247,18 @@ exports.handler = async (event, context) => {
         }
     }
 
-    async function sendBatches(batches, batch) {
+    async function sendBatches() {
         batches.push(batch);
         console.log(`Finished batching, pushing ${batches.length} batches to CloudWatch`);
         let seqToken = sequenceToken;
         for (let i = 0; i < batches.length; i++) {
-            const batch = batches[i];
+            const logEvents = batches[i];
             var count = 0;
             var batch_count = 0;
             try {
-                seqToken = await sendBatch(batch, seqToken);
+                seqToken = await sendBatch(logEvents, seqToken);
                 ++batch_count;
-                count += batch.length;
+                count += logEvents.length;
             } catch (err) {
                 console.log('Error sending batch: ', err, err.stack);
                 continue;
