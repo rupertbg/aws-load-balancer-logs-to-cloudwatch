@@ -335,7 +335,7 @@ Outputs:
         - !If
           - isNetworkLoadBalancer
           - !GetAtt NetworkLoadBalancer.CanonicalHostedZoneID
-          - !Ref AWS::NoValue
+          - none
 
   LogsBucket:
     Value: !Ref LogsBucket
