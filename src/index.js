@@ -99,16 +99,6 @@ const fields = {
     ]
 }
 
-function portField(fieldName, element, parsed) {
-    const field = fieldName.split(':')[0];
-    const [ip, port] = element.split(':');
-    if (ip === '-1') parsed[field] = parseInt(ip)
-    else parsed[field] = ip;
-
-    if (port) parsed[`${field}_port`] = parseInt(port)
-    else parsed[`${field}_port`] = -1
-}
-
 exports.handler = async (event, context) => {
     const logStreamName = context.logStreamName;
     const bucket = event.Records[0].s3.bucket.name;
@@ -129,6 +119,16 @@ exports.handler = async (event, context) => {
     var rl = readline.createInterface({
         input: bufferStream
     });
+
+    function portField(fieldName, element, parsed) {
+        const field = fieldName.split(':')[0];
+        const [ip, port] = element.split(':');
+        if (ip === '-1') parsed[field] = parseInt(ip)
+        else parsed[field] = ip;
+
+        if (port) parsed[`${field}_port`] = parseInt(port)
+        else parsed[`${field}_port`] = -1
+    }
 
     // Functions that mutate the parsed object
     const fieldFunctions = {
