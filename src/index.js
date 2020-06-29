@@ -223,7 +223,7 @@ async function sendBatch(batch, sequenceToken) {
     }
 }
 
-async function sendBatches(sequenceToken) {
+async function sendBatches(batches, batch, sequenceToken) {
     batches.push(batch);
     let seqToken = sequenceToken;
     for (let i = 0; i < batches.length; i++) {
@@ -311,5 +311,5 @@ exports.handler = async (event, context) => {
     });
 
     rl.on('line', (line) => readLines(batches, batch, batch_size, line));
-    rl.on('close', () => sendBatches(sequenceToken));
+    rl.on('close', () => sendBatches(batches, batch, sequenceToken));
 };
