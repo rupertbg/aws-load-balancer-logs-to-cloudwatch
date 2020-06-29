@@ -198,9 +198,9 @@ function parseLine(line) {
     return parsed
 }
 
-async function sendBatch(batch, sequenceToken, logStreamName) {
+async function sendBatch(logEvents, sequenceToken, logStreamName) {
     var putLogEventParams = {
-        logEvents: batch,
+        logEvents,
         logGroupName,
         logStreamName,
         sequenceToken,
