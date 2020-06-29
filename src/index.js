@@ -233,7 +233,7 @@ async function sendBatches(batches, batch, sequenceToken, logStreamName) {
         try {
             ++batch_count;
             count += batch.length;
-            seqToken = await sendBatch(seqToken, batch, logStreamName);
+            seqToken = await sendBatch(batch, seqToken, logStreamName);
         } catch (err) {
             console.log('Error sending batch: ', err, err.stack);
             continue;
