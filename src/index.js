@@ -51,19 +51,26 @@ exports.handler = async (event, context) => {
     //     }).promise();
     // }
 
+    let currentStream;
     const cwlDescribeStreams = await cloudWatchLogs.describeLogStreams({
         logGroupName: logGroupName,
         logStreamNamePrefix: logStreamName
     }).promise();
 
-    if (!cwlDescribeStreams.logStreams[0]) {
+    if (cwlDescribeStreams.logStreams[0]) currentStream = cwlDescribeStreams.logStreams[0]
+    else {
         await cloudWatchLogs.createLogStream({
             logGroupName,
             logStreamName,
         }).promise();
+        const cwlDescribeCreatedStream = await cloudWatchLogs.describeLogStreams({
+            logGroupName: logGroupName,
+            logStreamNamePrefix: logStreamName
+        }).promise();
+        currentStream = cwlDescribeCreatedStream.logStreams[0]
     }
 
-    putLogEvents(cwlDescribeStreams.logStreams[0].uploadSequenceToken, logData);
+    putLogEvents(currentStream.uploadSequenceToken, logData);
 
     function putLogEvents(sequenceToken, logData) {
         //From http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
