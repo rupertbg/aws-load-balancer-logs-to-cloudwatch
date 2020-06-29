@@ -31,17 +31,17 @@ Parameters:
 
 Conditions:
 
-  ApplicationLoadBalancer:
+  isApplicationLoadBalancer:
     !Equals
       - !Ref LoadBalancerType
       - application
   
-  NetworkLoadBalancer:
+  isNetworkLoadBalancer:
     !Equals
       - !Ref LoadBalancerType
       - network
   
-  ClassicLoadBalancer:
+  isClassicLoadBalancer:
     !Equals
       - !Ref LoadBalancerType
       - classic
@@ -55,7 +55,7 @@ Conditions:
 Resources:
 
   NetworkLoadBalancer:
-    Condition: NetworkLoadBalancer
+    Condition: isNetworkLoadBalancer
     DependsOn: LogsBucketPolicy
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -71,7 +71,7 @@ Resources:
       Subnets: !Ref Subnets
 
   Certificate:
-    Condition: NetworkLoadBalancer
+    Condition: isNetworkLoadBalancer
     Type: AWS::CertificateManager::Certificate
     Properties: 
       DomainName: !Ref DomainName
@@ -81,7 +81,7 @@ Resources:
           HostedZoneId: !Ref HostedZoneId
 
   TLSListener:
-    Condition: NetworkLoadBalancer
+    Condition: isNetworkLoadBalancer
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
@@ -96,7 +96,7 @@ Resources:
         - CertificateArn: !Ref Certificate
 
   TargetGroup:
-    Condition: NetworkLoadBalancer
+    Condition: isNetworkLoadBalancer
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties: 
       VpcId: !Ref VpcId
@@ -109,7 +109,7 @@ Resources:
           Port: 443
 
   DNSRecord:
-    Condition: NetworkLoadBalancer
+    Condition: isNetworkLoadBalancer
     Type: AWS::Route53::RecordSet
     Properties:
       AliasTarget:
@@ -140,7 +140,7 @@ Resources:
       CidrIp: 0.0.0.0/0
 
   ClassicLoadBalancer:
-    Condition: ClassicLoadBalancer
+    Condition: isClassicLoadBalancer
     Type: AWS::ElasticLoadBalancing::LoadBalancer
     Properties:
       LoadBalancerName: !Ref AWS::StackName
@@ -158,7 +158,7 @@ Resources:
         - !Ref SecurityGroup
 
   ApplicationLoadBalancer:
-    Condition: ApplicationLoadBalancer
+    Condition: isApplicationLoadBalancer
     DependsOn: LogsBucketPolicy
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -178,7 +178,7 @@ Resources:
         - !Ref SecurityGroup
 
   HTTPListener:
-    Condition: ApplicationLoadBalancer
+    Condition: isApplicationLoadBalancer
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
@@ -214,7 +214,7 @@ Resources:
       PolicyDocument:
         Statement:
           !If
-            - NetworkLoadBalancer
+            - isNetworkLoadBalancer
             - - Effect: Allow
                 Action: s3:PutObject
                 Principal:
@@ -263,7 +263,7 @@ Resources:
           LOG_GROUP_NAME: !Ref LogGroup
           CLASSIC_ELB_MODE:
             !If
-              - ClassicLoadBalancer
+              - isClassicLoadBalancer
               - 'TRUE'
               - !Ref AWS::NoValue
       Code:
@@ -310,31 +310,31 @@ Outputs:
   Name:
     Value:
       !If
-        - ClassicLoadBalancer
+        - isClassicLoadBalancer
         - !Ref ClassicLoadBalancer
         - !If 
-            - ApplicationLoadBalancer
+            - isApplicationLoadBalancer
             - !GetAtt ApplicationLoadBalancer.LoadBalancerName
             - !GetAtt NetworkLoadBalancer.LoadBalancerName
 
   DNSName:
     Value:
       !If
-        - ClassicLoadBalancer
+        - isClassicLoadBalancer
         - !GetAtt ClassicLoadBalancer.DNSName
         - !If 
-            - ApplicationLoadBalancer
+            - isApplicationLoadBalancer
             - !GetAtt ApplicationLoadBalancer.DNSName
             - !GetAtt NetworkLoadBalancer.DNSName
 
   HostedZoneId:
     Value:
       !If
-        - ApplicationLoadBalancer
+        - isApplicationLoadBalancer
         - !GetAtt ApplicationLoadBalancer.CanonicalHostedZoneID
         - !If
-          - NetworkLoadBalancer
-          - !GetAtt ApplicationLoadBalancer.CanonicalHostedZoneID
+          - isNetworkLoadBalancer
+          - !GetAtt NetworkLoadBalancer.CanonicalHostedZoneID
           - !Ref AWS::NoValue
 
   LogsBucket:
