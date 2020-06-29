@@ -243,7 +243,7 @@ async function sendBatches(sequenceToken) {
 }
 
 async function getS3Object(Bucket, Key) {
-    console.log(`Retrieving `${ Bucket }${ Key }``);
+    console.log(`Retrieving ${ Bucket }${ Key }`);
     return await s3.getObject({
         Bucket,
         Key,
@@ -286,7 +286,7 @@ async function getLogStreamSequenceToken(logStreamName) {
         }).promise();
         currentStream = cwlDescribeCreatedStream.logStreams[0];
     }
-    
+
     return currentStream.uploadSequenceToken;
 }
 
