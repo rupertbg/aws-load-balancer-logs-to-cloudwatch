@@ -179,8 +179,9 @@ function parseLine(line) {
 
                 if (element.match(/^\d+.?\d*$/)) element = Number(element)
 
+                parsed[fieldName] = element;
+
                 if (fieldFunctions[fieldName]) parsed = fieldFunctions[fieldName](fieldName, element, parsed)
-                else parsed[fieldName] = element;
 
                 element = '';
                 x++;
