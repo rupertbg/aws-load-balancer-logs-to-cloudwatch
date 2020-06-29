@@ -26,8 +26,6 @@ const MAX_BATCH_COUNT = 10000; // maximum number of Log Events per invocation of
 const LOG_EVENT_OVERHEAD = 26; // bytes of overhead per Log Event
 
 function readLines(line) {
-    ++line_count;
-
     let ts;
     switch (loadBalancerType) {
         case 'classic':
@@ -155,7 +153,6 @@ exports.handler = async (event, context) => {
         input: bufferStream
     });
 
-    var line_count = 0;
     rl.on('line', readLines);
     rl.on('close', sendBatches);
 };
