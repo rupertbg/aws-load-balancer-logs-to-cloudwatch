@@ -264,11 +264,7 @@ Resources:
       Environment:
         Variables:
           LOG_GROUP_NAME: !Ref LogGroup
-          CLASSIC_ELB_MODE:
-            !If
-              - isClassicLoadBalancer
-              - 'TRUE'
-              - !Ref AWS::NoValue
+          LOAD_BALANCER_TYPE: !Ref LoadBalancerType
       Code:
         S3Bucket: !Ref LambdaBucket
         S3Key: code.zip
