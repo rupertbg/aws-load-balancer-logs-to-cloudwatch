@@ -167,7 +167,7 @@ function readLines(batches, batch, batch_size, line) {
 }
 
 function parseLine(line) {
-    const parsed = {}
+    let parsed = {}
     let x = 0
     let end = false
     let withinQuotes = false
