@@ -149,8 +149,7 @@ exports.handler = async (event, context) => {
         "backend:port": portField,
     }
 
-    function readLines(batches, batch, batch_size, line) {
-        console.log(`Batch size: ${batch_size}, Number of batches: ${batches.length}`);
+    function readLines(line) {
         let ts;
         switch (loadBalancerType) {
             case 'classic':
@@ -222,8 +221,8 @@ exports.handler = async (event, context) => {
         return parsed
     }
 
-    async function sendBatch(logEvents, sequenceToken, logStreamName) {
-        console.log(`Sending batch to ${LogStreamName}`);
+    async function sendBatch(logEvents) {
+        console.log(`Sending batch to ${logStreamName}`);
         var putLogEventParams = {
             logEvents,
             logGroupName,
@@ -248,7 +247,7 @@ exports.handler = async (event, context) => {
         }
     }
 
-    async function sendBatches(batches, batch, sequenceToken, logStreamName) {
+    async function sendBatches(batches, batch) {
         batches.push(batch);
         console.log(`Finished batching, pushing ${batches.length} batches to CloudWatch`);
         let seqToken = sequenceToken;
@@ -257,7 +256,7 @@ exports.handler = async (event, context) => {
             var count = 0;
             var batch_count = 0;
             try {
-                seqToken = await sendBatch(batch, seqToken, logStreamName);
+                seqToken = await sendBatch(batch, seqToken);
                 ++batch_count;
                 count += batch.length;
             } catch (err) {
@@ -298,7 +297,7 @@ exports.handler = async (event, context) => {
         }
     }
 
-    async function getLogStreamSequenceToken(logStreamName) {
+    async function getLogStreamSequenceToken() {
         console.log(`Checking Log Streams ${logGroupName}/${logStreamName}`);
         let currentStream;
         const cwlDescribeStreams = await cloudWatchLogs.describeLogStreams({
@@ -323,6 +322,6 @@ exports.handler = async (event, context) => {
         return currentStream.uploadSequenceToken;
     }
 
-    rl.on('line', (line) => readLines(batches, batch, batch_size, line));
-    rl.on('close', () => sendBatches(batches, batch, sequenceToken, logStreamName));
+    rl.on('line', readLines);
+    rl.on('close', sendBatches);
 };
