@@ -107,6 +107,7 @@ function portField(fieldName, element, parsed) {
 
     if (port) parsed[`${field}_port`] = parseInt(port)
     else parsed[`${field}_port`] = -1
+    return parsed;
 }
 
 const fieldFunctions = {
@@ -178,7 +179,7 @@ function parseLine(line) {
 
                 if (element.match(/^\d+.?\d*$/)) element = Number(element)
 
-                if (fieldFunctions[fieldName]) fieldFunctions[fieldName](fieldName, element, parsed)
+                if (fieldFunctions[fieldName]) parsed = fieldFunctions[fieldName](fieldName, element, parsed)
                 else parsed[fieldName] = element;
 
                 element = '';
