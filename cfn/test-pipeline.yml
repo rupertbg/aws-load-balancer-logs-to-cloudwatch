@@ -99,75 +99,6 @@ Resources:
                 - Name: source
         - Name: Deploy
           Actions:
-            - Name: ELB-Logs
-              RunOrder: 1
-              Namespace: elb-logs
-              InputArtifacts:
-                - Name: source
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Provider: CloudFormation
-                Version: "1"
-              Configuration:
-                RoleArn: !GetAtt PipelineRole.Arn
-                ActionMode: REPLACE_ON_FAILURE
-                Capabilities: CAPABILITY_NAMED_IAM
-                StackName: !Sub ${AWS::StackName}-elb-logs
-                TemplatePath: source::cfn/lambda.yml
-                ParameterOverrides: !Sub |
-                  {
-                    "LoadBalancerName": "#{elb.Name}",
-                    "LoadBalancerType": "classic",
-                    "LambdaBucket": "${PipelineBucket}",
-                    "S3FileVersion": "#{build.ObjectVersionId}"
-                  }
-            - Name: ALB-Logs
-              RunOrder: 1
-              Namespace: alb-logs
-              InputArtifacts:
-                - Name: source
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Provider: CloudFormation
-                Version: "1"
-              Configuration:
-                RoleArn: !GetAtt PipelineRole.Arn
-                ActionMode: REPLACE_ON_FAILURE
-                Capabilities: CAPABILITY_NAMED_IAM
-                StackName: !Sub ${AWS::StackName}-alb-logs
-                TemplatePath: source::cfn/lambda.yml
-                ParameterOverrides: !Sub |
-                  {
-                    "LoadBalancerName": "#{alb.Name}",
-                    "LoadBalancerType": "application",
-                    "LambdaBucket": "${PipelineBucket}",
-                    "S3FileVersion": "#{build.ObjectVersionId}"
-                  }
-            - Name: NLB-Logs
-              RunOrder: 1
-              Namespace: nlb-logs
-              InputArtifacts:
-                - Name: source
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Provider: CloudFormation
-                Version: "1"
-              Configuration:
-                RoleArn: !GetAtt PipelineRole.Arn
-                ActionMode: REPLACE_ON_FAILURE
-                Capabilities: CAPABILITY_NAMED_IAM
-                StackName: !Sub ${AWS::StackName}-nlb-logs
-                TemplatePath: source::cfn/lambda.yml
-                ParameterOverrides: !Sub |
-                  {
-                    "LoadBalancerName": "#{nlb.Name}",
-                    "LoadBalancerType": "network",
-                    "LambdaBucket": "${PipelineBucket}",
-                    "S3FileVersion": "#{build.ObjectVersionId}"
-                  }
             - Name: ELB
               RunOrder: 2
               Namespace: elb
@@ -183,14 +114,16 @@ Resources:
                 ActionMode: REPLACE_ON_FAILURE
                 Capabilities: CAPABILITY_NAMED_IAM
                 StackName: !Sub ${AWS::StackName}-elb
-                TemplatePath: source::cfn/elb.yml
+                TemplatePath: source::cfn/test-deployment.yml
                 ParameterOverrides: 
                   !Sub
                     - | 
                         {
                           "VpcId": "${VpcId}",
                           "Subnets": "${SubnetIds}",
-                          "LogsBucket": "#{elb-logs.LogsBucket}"
+                          "LoadBalancerType": "classic",
+                          "LambdaBucket": "${PipelineBucket}",
+                          "S3FileVersion": "#{build.ObjectVersionId}"
                         }
                     - SubnetIds: !Join [ ',', !Ref Subnets ]
             - Name: ALB
@@ -208,14 +141,16 @@ Resources:
                 ActionMode: REPLACE_ON_FAILURE
                 Capabilities: CAPABILITY_NAMED_IAM
                 StackName: !Sub ${AWS::StackName}-alb
-                TemplatePath: source::cfn/alb.yml
+                TemplatePath: source::cfn/test-deployment.yml
                 ParameterOverrides: 
                   !Sub
                     - | 
                         {
                           "VpcId": "${VpcId}",
                           "Subnets": "${SubnetIds}",
-                          "LogsBucket": "#{alb-logs.LogsBucket}"
+                          "LoadBalancerType": "application",
+                          "LambdaBucket": "${PipelineBucket}",
+                          "S3FileVersion": "#{build.ObjectVersionId}"
                         }
                     - SubnetIds: !Join [ ',', !Ref Subnets ]
             - Name: NLB
@@ -233,7 +168,7 @@ Resources:
                 ActionMode: REPLACE_ON_FAILURE
                 Capabilities: CAPABILITY_NAMED_IAM
                 StackName: !Sub ${AWS::StackName}-nlb
-                TemplatePath: source::cfn/nlb.yml
+                TemplatePath: source::cfn/test-deployment.yml
                 ParameterOverrides: 
                   !Sub
                     - | 
@@ -242,7 +177,9 @@ Resources:
                           "HostedZoneId": "${HostedZoneId}",
                           "VpcId": "${VpcId}",
                           "Subnets": "${SubnetIds}",
-                          "LogsBucket": "#{nlb-logs.LogsBucket}"
+                          "LoadBalancerType": "network",
+                          "LambdaBucket": "${PipelineBucket}",
+                          "S3FileVersion": "#{build.ObjectVersionId}"
                         }
                     - SubnetIds: !Join [ ',', !Ref Subnets ]
 
