@@ -2,6 +2,7 @@
 
 const readline = require('readline');
 const stream = require('stream');
+const url = require('url');
 
 const zlib = require('zlib');
 const {
@@ -20,10 +21,112 @@ const cloudWatchLogs = new aws.CloudWatchLogs({
 //specifying the log group and the log stream name for CloudWatch Logs
 const logGroupName = process.env.LOG_GROUP_NAME;
 const loadBalancerType = process.env.LOAD_BALANCER_TYPE;
+const plaintextLogs = process.env.PLAINTEXT_LOGS;
 
 const MAX_BATCH_SIZE = 1048576; // maximum size in bytes of Log Events (with overhead) per invocation of PutLogEvents
 const MAX_BATCH_COUNT = 10000; // maximum number of Log Events per invocation of PutLogEvents
 const LOG_EVENT_OVERHEAD = 26; // bytes of overhead per Log Event
+
+const fields = {
+    application: [
+        "type",
+        "time",
+        "elb",
+        "client:port",
+        "target:port",
+        "request_processing_time",
+        "target_processing_time",
+        "response_processing_time",
+        "elb_status_code",
+        "target_status_code",
+        "received_bytes",
+        "sent_bytes",
+        "request",
+        "user_agent",
+        "ssl_cipher",
+        "ssl_protocol",
+        "target_group_arn",
+        "trace_id",
+        "domain_name",
+        "chosen_cert_arn",
+        "matched_rule_priority",
+        "request_creation_time",
+        "actions_executed",
+        "redirect_url",
+        "error_reason",
+        "target:port_list",
+        "target_status_code_list"
+    ],
+    classic: [
+        "time",
+        "elb",
+        "client:port",
+        "backend:port",
+        "request_processing_time",
+        "backend_processing_time",
+        "response_processing_time",
+        "elb_status_code",
+        "backend_status_code",
+        "received_bytes",
+        "sent_bytes",
+        "request",
+        "user_agent",
+        "ssl_cipher",
+        "ssl_protocol"
+    ],
+    network: [
+        "type",
+        "version",
+        "time",
+        "elb",
+        "listener",
+        "client:port",
+        "destination:port",
+        "connection_time",
+        "tls_handshake_time",
+        "received_bytes",
+        "sent_bytes",
+        "incoming_tls_alert",
+        "chosen_cert_arn",
+        "chosen_cert_serial",
+        "tls_cipher",
+        "tls_protocol_version",
+        "tls_named_group",
+        "domain_name",
+        "alpn_fe_protocol",
+        "alpn_be_protocol",
+        "alpn_client_preference_list"
+    ]
+}
+
+function portField(fieldName, element, parsed) {
+    const field = fieldName.match(/^\S+?:port$/)[1];
+    const [ip, port] = element.split(':');
+    if (ip === '-1') parsed[field] = parseInt(ip)
+    else parsed[field] = ip;
+
+    if (port) parsed[`${field}_port`] = parseInt(port)
+    else parsed[`${field}_port`] = -1
+}
+
+const fieldFunctions = {
+    "request": (fieldName, element, parsed) => {
+        const [request_method, request_uri, request_http_version] = element.split(/\s+/)
+        parsed.request_method = request_method
+        parsed.request_uri = request_uri
+        parsed.request_http_version = request_http_version
+        const parsedUrl = url.parse(request_uri)
+        parsed.request_uri_scheme = parsedUrl.protocol
+        parsed.request_uri_host = parsedUrl.hostname
+        if (parsedUrl.port) parsed.request_uri_port = parseInt(parsedUrl.port)
+        parsed.request_uri_path = parsedUrl.pathname
+        parsed.request_uri_query = parsedUrl.query
+        return parsed
+    },
+    "target:port": portField,
+    "client:port": portField,
+    "backend:port": portField,
+}
 
 function readLines(line) {
     let ts;
@@ -53,10 +156,46 @@ function readLines(line) {
         batch = [];
         batch_size = event_size;
     }
+
+    if (!plaintextLogs) line = JSON.stringify(parseLine(line));
+
     batch.push({
         message: line,
         timestamp: tval,
     });
+}
+
+function parseLine(line) {
+    const parsed = {}
+    let x = 0
+    let end = false
+    let withinQuotes = false
+    let element = ''
+    for (const c of line + ' ') {
+        if (end) {
+            if (element) {
+                const fieldName = fields[loadBalancerType][x]
+
+                if (element.match(/^\d+.?\d*$/)) element = Number(element)
+
+                if (fieldFunctions[fieldName]) fieldFunctions[fieldName](fieldName, element, parsed)
+                else parsed[fieldName] = element;
+
+                element = '';
+                x++;
+            }
+            end = false;
+        };
+
+        if (c.match(/^\s$/) && !withinQuotes) end = true;
+
+        if (c === '"') {
+            if (withinQuotes) end = true
+            withinQuotes = !withinQuotes;
+        }
+        else if (!end) element += c;
+    }
+    return parsed
 }
 
 async function sendBatch(batch, sequenceToken) {
