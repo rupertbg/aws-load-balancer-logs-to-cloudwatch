@@ -100,16 +100,16 @@ const fields = {
 }
 
 function portField(fieldName, element, parsed) {
-    const field = fieldName.match(/^\S+?:port$/)[1];
+    const field = fieldName.split(':')[0];
     const [ip, port] = element.split(':');
     if (ip === '-1') parsed[field] = parseInt(ip)
     else parsed[field] = ip;
 
     if (port) parsed[`${field}_port`] = parseInt(port)
     else parsed[`${field}_port`] = -1
-    return parsed;
 }
 
+// Functions that mutate the parsed object
 const fieldFunctions = {
     "request": (fieldName, element, parsed) => {
         const [request_method, request_uri, request_http_version] = element.split(/\s+/)
@@ -122,7 +122,6 @@ const fieldFunctions = {
         if (parsedUrl.port) parsed.request_uri_port = parseInt(parsedUrl.port)
         parsed.request_uri_path = parsedUrl.pathname
         parsed.request_uri_query = parsedUrl.query
-        return parsed
     },
     "target:port": portField,
     "client:port": portField,
@@ -167,7 +166,7 @@ function readLines(batches, batch, batch_size, line) {
 }
 
 function parseLine(line) {
-    let parsed = {}
+    const parsed = {}
     let x = 0
     let end = false
     let withinQuotes = false
@@ -179,9 +178,9 @@ function parseLine(line) {
 
                 if (element.match(/^\d+.?\d*$/)) element = Number(element)
 
-                parsed[fieldName] = element;
+                if (fieldFunctions[fieldName]) fieldFunctions[fieldName](fieldName, element, parsed)
 
-                if (fieldFunctions[fieldName]) parsed = fieldFunctions[fieldName](fieldName, element, parsed)
+                parsed[fieldName] = element;
 
                 element = '';
                 x++;
