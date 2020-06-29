@@ -250,7 +250,7 @@ async function getS3Object(Bucket, Key) {
     }).promise();
 }
 
-function unpackLogData(object) {
+async function unpackLogData(object) {
     if (loadBalancerType === "classic") return object.Body.toString('ascii')
     else {
         const uncompressedLogBuffer = await gunzipAsync(object.Body);
@@ -295,7 +295,7 @@ exports.handler = async (event, context) => {
     const bucket = event.Records[0].s3.bucket.name;
     const key = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, ' '));
     const object = await getS3Object(bucket, key);
-    const logData = unpackLogData(object);
+    const logData = await unpackLogData(object);
     await createLogGroupIfNotExists();
 
     let sequenceToken = await getLogStreamSequenceToken(logStreamName);
