@@ -109,199 +109,6 @@ function portField(fieldName, element, parsed) {
     else parsed[`${field}_port`] = -1
 }
 
-// Functions that mutate the parsed object
-const fieldFunctions = {
-    "request": (fieldName, element, parsed) => {
-        const [request_method, request_uri, request_http_version] = element.split(/\s+/)
-        parsed.request_method = request_method
-        parsed.request_uri = request_uri
-        parsed.request_http_version = request_http_version
-        const parsedUrl = url.parse(request_uri)
-        parsed.request_uri_scheme = parsedUrl.protocol
-        parsed.request_uri_host = parsedUrl.hostname
-        if (parsedUrl.port) parsed.request_uri_port = parseInt(parsedUrl.port)
-        parsed.request_uri_path = parsedUrl.pathname
-        parsed.request_uri_query = parsedUrl.query
-    },
-    "target:port": portField,
-    "client:port": portField,
-    "backend:port": portField,
-}
-
-function readLines(batches, batch, batch_size, line) {
-    console.log(`Batch size: ${batch_size}, Number of batches: ${batches.length}`);
-    let ts;
-    switch (loadBalancerType) {
-        case 'classic':
-            ts = line.split(' ', 1)[0];
-            break;
-        case 'application':
-            ts = line.split(' ', 2)[1];
-            break;
-        case 'network':
-            ts = line.split(' ', 3)[2];
-            break;
-        default:
-            console.error('Invalid load balancer type');
-            process.exit(1);
-    }
-
-    var tval = Date.parse(ts);
-
-    var event_size = line.length + LOG_EVENT_OVERHEAD;
-    batch_size += event_size;
-    if (batch_size >= MAX_BATCH_SIZE ||
-        batch.length >= MAX_BATCH_COUNT) {
-        // start a new batch
-        batches.push(batch);
-        batch = [];
-        batch_size = event_size;
-    }
-
-    if (!plaintextLogs) line = JSON.stringify(parseLine(line));
-
-    batch.push({
-        message: line,
-        timestamp: tval,
-    });
-}
-
-function parseLine(line) {
-    console.log('Parsing log line')
-    const parsed = {}
-    let x = 0
-    let end = false
-    let withinQuotes = false
-    let element = ''
-    for (const c of line + ' ') {
-        if (end) {
-            if (element) {
-                const fieldName = fields[loadBalancerType][x]
-
-                if (element.match(/^\d+.?\d*$/)) element = Number(element)
-
-                if (fieldFunctions[fieldName]) fieldFunctions[fieldName](fieldName, element, parsed)
-
-                parsed[fieldName] = element;
-
-                element = '';
-                x++;
-            }
-            end = false;
-        };
-
-        if (c.match(/^\s$/) && !withinQuotes) end = true;
-
-        if (c === '"') {
-            if (withinQuotes) end = true
-            withinQuotes = !withinQuotes;
-        }
-        else if (!end) element += c;
-    }
-    return parsed
-}
-
-async function sendBatch(logEvents, sequenceToken, logStreamName) {
-    console.log(`Sending batch to ${LogStreamName}`);
-    var putLogEventParams = {
-        logEvents,
-        logGroupName,
-        logStreamName,
-        sequenceToken,
-    }
-
-    // sort the events in ascending order by timestamp as required by PutLogEvents
-    putLogEventParams.logEvents.sort((a, b) => {
-        if (a.timestamp > b.timestamp) return 1;
-        if (a.timestamp < b.timestamp) return -1;
-        return 0;
-    });
-
-    try {
-        const cwPutLogEvents = await cloudWatchLogs.putLogEvents(putLogEventParams).promise();
-        console.log(`Success in putting ${putLogEventParams.logEvents.length} events`);
-        return cwPutLogEvents.nextSequenceToken
-    } catch (err) {
-        console.log('Error during put log events: ', err, err.stack);
-        return sequenceToken;
-    }
-}
-
-async function sendBatches(batches, batch, sequenceToken, logStreamName) {
-    batches.push(batch);
-    console.log(`Finished batching, pushing ${batches.length} batches to CloudWatch`);
-    let seqToken = sequenceToken;
-    for (let i = 0; i < batches.length; i++) {
-        const batch = batches[i];
-        var count = 0;
-        var batch_count = 0;
-        try {
-            seqToken = await sendBatch(batch, seqToken, logStreamName);
-            ++batch_count;
-            count += batch.length;
-        } catch (err) {
-            console.log('Error sending batch: ', err, err.stack);
-            continue;
-        }
-    }
-    console.log(`Successfully put ${count} events in ${batch_count} batches`);
-}
-
-async function getS3Object(Bucket, Key) {
-    console.log(`Retrieving ${Bucket}${Key}`);
-    return await s3.getObject({
-        Bucket,
-        Key,
-    }).promise();
-}
-
-async function unpackLogData(s3object) {
-    console.log(`Unpacking log data for ${loadBalancerType} load balancer`);
-    if (loadBalancerType === "classic") return s3object.Body.toString('ascii')
-    else {
-        const uncompressedLogBuffer = await gunzipAsync(s3object.Body);
-        return uncompressedLogBuffer.toString('ascii');
-    }
-}
-
-async function createLogGroupIfNotExists() {
-    console.log(`Checking Log Group ${logGroupName} exists`);
-    const result = await cloudWatchLogs.describeLogGroups({
-        logGroupNamePrefix: logGroupName,
-    }).promise();
-    if (!result.logGroups[0]) {
-        console.log(`${logGroupName} exists`);
-        await cloudWatchLogs.createLogGroup({
-            logGroupName,
-        }).promise();
-    }
-}
-
-async function getLogStreamSequenceToken(logStreamName) {
-    console.log(`Checking Log Streams ${logGroupName}/${logStreamName}`);
-    let currentStream;
-    const cwlDescribeStreams = await cloudWatchLogs.describeLogStreams({
-        logGroupName,
-        logStreamNamePrefix: logStreamName
-    }).promise();
-
-    if (cwlDescribeStreams.logStreams[0]) currentStream = cwlDescribeStreams.logStreams[0]
-    else {
-        console.log(`Creating Log Stream ${logGroupName}/${logStreamName}`);
-        await cloudWatchLogs.createLogStream({
-            logGroupName,
-            logStreamName,
-        }).promise();
-        const cwlDescribeCreatedStream = await cloudWatchLogs.describeLogStreams({
-            logGroupName: logGroupName,
-            logStreamNamePrefix: logStreamName
-        }).promise();
-        currentStream = cwlDescribeCreatedStream.logStreams[0];
-    }
-
-    return currentStream.uploadSequenceToken;
-}
-
 exports.handler = async (event, context) => {
     const logStreamName = context.logStreamName;
     const bucket = event.Records[0].s3.bucket.name;
@@ -322,6 +129,199 @@ exports.handler = async (event, context) => {
     var rl = readline.createInterface({
         input: bufferStream
     });
+
+    // Functions that mutate the parsed object
+    const fieldFunctions = {
+        "request": (fieldName, element, parsed) => {
+            const [request_method, request_uri, request_http_version] = element.split(/\s+/)
+            parsed.request_method = request_method
+            parsed.request_uri = request_uri
+            parsed.request_http_version = request_http_version
+            const parsedUrl = url.parse(request_uri)
+            parsed.request_uri_scheme = parsedUrl.protocol
+            parsed.request_uri_host = parsedUrl.hostname
+            if (parsedUrl.port) parsed.request_uri_port = parseInt(parsedUrl.port)
+            parsed.request_uri_path = parsedUrl.pathname
+            parsed.request_uri_query = parsedUrl.query
+        },
+        "target:port": portField,
+        "client:port": portField,
+        "backend:port": portField,
+    }
+
+    function readLines(batches, batch, batch_size, line) {
+        console.log(`Batch size: ${batch_size}, Number of batches: ${batches.length}`);
+        let ts;
+        switch (loadBalancerType) {
+            case 'classic':
+                ts = line.split(' ', 1)[0];
+                break;
+            case 'application':
+                ts = line.split(' ', 2)[1];
+                break;
+            case 'network':
+                ts = line.split(' ', 3)[2];
+                break;
+            default:
+                console.error('Invalid load balancer type');
+                process.exit(1);
+        }
+
+        var tval = Date.parse(ts);
+
+        var event_size = line.length + LOG_EVENT_OVERHEAD;
+        batch_size += event_size;
+        if (batch_size >= MAX_BATCH_SIZE ||
+            batch.length >= MAX_BATCH_COUNT) {
+            // start a new batch
+            batches.push(batch);
+            batch = [];
+            batch_size = event_size;
+        }
+
+        if (!plaintextLogs) line = JSON.stringify(parseLine(line));
+
+        batch.push({
+            message: line,
+            timestamp: tval,
+        });
+    }
+
+    function parseLine(line) {
+        console.log('Parsing log line')
+        const parsed = {}
+        let x = 0
+        let end = false
+        let withinQuotes = false
+        let element = ''
+        for (const c of line + ' ') {
+            if (end) {
+                if (element) {
+                    const fieldName = fields[loadBalancerType][x]
+
+                    if (element.match(/^\d+.?\d*$/)) element = Number(element)
+
+                    if (fieldFunctions[fieldName]) fieldFunctions[fieldName](fieldName, element, parsed)
+
+                    parsed[fieldName] = element;
+
+                    element = '';
+                    x++;
+                }
+                end = false;
+            };
+
+            if (c.match(/^\s$/) && !withinQuotes) end = true;
+
+            if (c === '"') {
+                if (withinQuotes) end = true
+                withinQuotes = !withinQuotes;
+            }
+            else if (!end) element += c;
+        }
+        return parsed
+    }
+
+    async function sendBatch(logEvents, sequenceToken, logStreamName) {
+        console.log(`Sending batch to ${LogStreamName}`);
+        var putLogEventParams = {
+            logEvents,
+            logGroupName,
+            logStreamName,
+            sequenceToken,
+        }
+
+        // sort the events in ascending order by timestamp as required by PutLogEvents
+        putLogEventParams.logEvents.sort((a, b) => {
+            if (a.timestamp > b.timestamp) return 1;
+            if (a.timestamp < b.timestamp) return -1;
+            return 0;
+        });
+
+        try {
+            const cwPutLogEvents = await cloudWatchLogs.putLogEvents(putLogEventParams).promise();
+            console.log(`Success in putting ${putLogEventParams.logEvents.length} events`);
+            return cwPutLogEvents.nextSequenceToken
+        } catch (err) {
+            console.log('Error during put log events: ', err, err.stack);
+            return sequenceToken;
+        }
+    }
+
+    async function sendBatches(batches, batch, sequenceToken, logStreamName) {
+        batches.push(batch);
+        console.log(`Finished batching, pushing ${batches.length} batches to CloudWatch`);
+        let seqToken = sequenceToken;
+        for (let i = 0; i < batches.length; i++) {
+            const batch = batches[i];
+            var count = 0;
+            var batch_count = 0;
+            try {
+                seqToken = await sendBatch(batch, seqToken, logStreamName);
+                ++batch_count;
+                count += batch.length;
+            } catch (err) {
+                console.log('Error sending batch: ', err, err.stack);
+                continue;
+            }
+        }
+        console.log(`Successfully put ${count} events in ${batch_count} batches`);
+    }
+
+    async function getS3Object(Bucket, Key) {
+        console.log(`Retrieving ${Bucket}${Key}`);
+        return await s3.getObject({
+            Bucket,
+            Key,
+        }).promise();
+    }
+
+    async function unpackLogData(s3object) {
+        console.log(`Unpacking log data for ${loadBalancerType} load balancer`);
+        if (loadBalancerType === "classic") return s3object.Body.toString('ascii')
+        else {
+            const uncompressedLogBuffer = await gunzipAsync(s3object.Body);
+            return uncompressedLogBuffer.toString('ascii');
+        }
+    }
+
+    async function createLogGroupIfNotExists() {
+        console.log(`Checking Log Group ${logGroupName} exists`);
+        const result = await cloudWatchLogs.describeLogGroups({
+            logGroupNamePrefix: logGroupName,
+        }).promise();
+        if (!result.logGroups[0]) {
+            console.log(`${logGroupName} exists`);
+            await cloudWatchLogs.createLogGroup({
+                logGroupName,
+            }).promise();
+        }
+    }
+
+    async function getLogStreamSequenceToken(logStreamName) {
+        console.log(`Checking Log Streams ${logGroupName}/${logStreamName}`);
+        let currentStream;
+        const cwlDescribeStreams = await cloudWatchLogs.describeLogStreams({
+            logGroupName,
+            logStreamNamePrefix: logStreamName
+        }).promise();
+
+        if (cwlDescribeStreams.logStreams[0]) currentStream = cwlDescribeStreams.logStreams[0]
+        else {
+            console.log(`Creating Log Stream ${logGroupName}/${logStreamName}`);
+            await cloudWatchLogs.createLogStream({
+                logGroupName,
+                logStreamName,
+            }).promise();
+            const cwlDescribeCreatedStream = await cloudWatchLogs.describeLogStreams({
+                logGroupName: logGroupName,
+                logStreamNamePrefix: logStreamName
+            }).promise();
+            currentStream = cwlDescribeCreatedStream.logStreams[0];
+        }
+
+        return currentStream.uploadSequenceToken;
+    }
 
     rl.on('line', (line) => readLines(batches, batch, batch_size, line));
     rl.on('close', () => sendBatches(batches, batch, sequenceToken, logStreamName));
