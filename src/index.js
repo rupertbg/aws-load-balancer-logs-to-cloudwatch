@@ -25,6 +25,86 @@ const MAX_BATCH_SIZE = 1048576; // maximum size in bytes of Log Events (with ove
 const MAX_BATCH_COUNT = 10000; // maximum number of Log Events per invocation of PutLogEvents
 const LOG_EVENT_OVERHEAD = 26; // bytes of overhead per Log Event
 
+function readLines(line) {
+    ++line_count;
+
+    let ts;
+    switch (loadBalancerType) {
+        case 'classic':
+            ts = line.split(' ', 1)[0];
+            break;
+        case 'application':
+            ts = line.split(' ', 2)[1];
+            break;
+        case 'network':
+            ts = line.split(' ', 3)[2];
+            break;
+        default:
+            console.error('Invalid load balancer type');
+            process.exit(1);
+    }
+
+    var tval = Date.parse(ts);
+
+    var event_size = line.length + LOG_EVENT_OVERHEAD;
+    batch_size += event_size;
+    if (batch_size >= MAX_BATCH_SIZE ||
+        batch.length >= MAX_BATCH_COUNT) {
+        // start a new batch
+        batches.push(batch);
+        batch = [];
+        batch_size = event_size;
+    }
+    batch.push({
+        message: line,
+        timestamp: tval,
+    });
+}
+
+async function sendBatch(batch, sequenceToken) {
+    var putLogEventParams = {
+        logEvents: batch,
+        logGroupName: logGroupName,
+        logStreamName: logStreamName,
+        sequenceToken,
+    }
+
+    // sort the events in ascending order by timestamp as required by PutLogEvents
+    putLogEventParams.logEvents.sort((a, b) => {
+        if (a.timestamp > b.timestamp) return 1;
+        if (a.timestamp < b.timestamp) return -1;
+        return 0;
+    });
+
+    try {
+        const cwPutLogEvents = await cloudWatchLogs.putLogEvents(putLogEventParams).promise();
+        console.log(`Success in putting ${putLogEventParams.logEvents.length} events`);
+        return cwPutLogEvents.nextSequenceToken
+    } catch (err) {
+        console.log('Error during put log events: ', err, err.stack);
+        return sequenceToken;
+    }
+}
+
+async function sendBatches(sequenceToken) {
+    batches.push(batch);
+    let seqToken = sequenceToken;
+    for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        var count = 0;
+        var batch_count = 0;
+        try {
+            ++batch_count;
+            count += batch.length;
+            seqToken = await sendBatch(seqToken, batch);
+        } catch (err) {
+            console.log('Error sending batch: ', err, err.stack);
+            continue;
+        }
+    }
+    console.log(`Successfully put ${count} events in ${batch_count} batches`);
+}
+
 exports.handler = async (event, context) => {
     const logStreamName = context.logStreamName;
     const bucket = event.Records[0].s3.bucket.name;
@@ -76,79 +156,6 @@ exports.handler = async (event, context) => {
     });
 
     var line_count = 0;
-    rl.on('line', (line) => {
-        ++line_count;
-
-        let ts;
-        switch (loadBalancerType) {
-            case 'classic':
-                ts = line.split(' ', 1)[0];
-                break;
-            case 'application':
-                ts = line.split(' ', 2)[1];
-                break;
-            case 'network':
-                ts = line.split(' ', 3)[2];
-                break;
-            default:
-                console.error('Invalid load balancer type');
-                process.exit(1);
-        }
-
-        var tval = Date.parse(ts);
-
-        var event_size = line.length + LOG_EVENT_OVERHEAD;
-        batch_size += event_size;
-        if (batch_size >= MAX_BATCH_SIZE ||
-            batch.length >= MAX_BATCH_COUNT) {
-            // start a new batch
-            batches.push(batch);
-            batch = [];
-            batch_size = event_size;
-        }
-        batch.push({
-            message: line,
-            timestamp: tval,
-        });
-    });
-
+    rl.on('line', readLines);
     rl.on('close', sendBatches);
-
-    function sendBatches() {
-        batches.push(batch);
-        for (let i = 0; i < batches.length; i++) {
-            const batch = batches[i];
-            var count = 0;
-            var batch_count = 0;
-            try {
-                ++batch_count;
-                count += batch.length;
-                var putLogEventParams = {
-                    logEvents: batch,
-                    logGroupName: logGroupName,
-                    logStreamName: logStreamName
-                }
-                if (sequenceToken) putLogEventParams['sequenceToken'] = sequenceToken;
-
-                // sort the events in ascending order by timestamp as required by PutLogEvents
-                putLogEventParams.logEvents.sort(function(a, b) {
-                    if(a.timestamp > b.timestamp) return 1;
-                    if(a.timestamp < b.timestamp) return -1;
-                    return 0;
-                });
-
-                try {
-                    const cwPutLogEvents = await cloudWatchLogs.putLogEvents (putLogEventParams).promise();
-                    console.log(`Success in putting ${putLogEventParams.logEvents.length} events`);
-                    sequenceToken = cwPutLogEvents.nextSequenceToken
-                } catch (err) {
-                    console.log('Error during put log events: ', err, err.stack);
-                }
-            } catch (err) {
-                console.log('Error sending batch: ', err, err.stack);
-                continue;
-            }
-        }
-        console.log(`Successfully put ${count} events in ${batch_count} batches`);
-    }
 };
