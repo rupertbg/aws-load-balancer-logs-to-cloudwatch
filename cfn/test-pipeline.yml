@@ -99,82 +99,9 @@ Resources:
                 - Name: source
         - Name: Deploy
           Actions:
-            - Name: ELB
-              RunOrder: 1
-              Namespace: elb
-              InputArtifacts:
-                - Name: source
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Provider: CloudFormation
-                Version: "1"
-              Configuration:
-                RoleArn: !GetAtt PipelineRole.Arn
-                ActionMode: REPLACE_ON_FAILURE
-                Capabilities: CAPABILITY_NAMED_IAM
-                StackName: !Sub ${AWS::StackName}-elb
-                TemplatePath: source::cfn/elb.yml
-                ParameterOverrides: 
-                  !Sub
-                    - | 
-                        {
-                          "VpcId": "${VpcId}",
-                          "Subnets": "${SubnetIds}"
-                        }
-                    - SubnetIds: !Join [ ',', !Ref Subnets ]
-            - Name: ALB
-              RunOrder: 1
-              Namespace: alb
-              InputArtifacts:
-                - Name: source
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Provider: CloudFormation
-                Version: "1"
-              Configuration:
-                RoleArn: !GetAtt PipelineRole.Arn
-                ActionMode: REPLACE_ON_FAILURE
-                Capabilities: CAPABILITY_NAMED_IAM
-                StackName: !Sub ${AWS::StackName}-alb
-                TemplatePath: source::cfn/alb.yml
-                ParameterOverrides: 
-                  !Sub
-                    - | 
-                        {
-                          "VpcId": "${VpcId}",
-                          "Subnets": "${SubnetIds}"
-                        }
-                    - SubnetIds: !Join [ ',', !Ref Subnets ]
-            - Name: NLB
-              RunOrder: 1
-              Namespace: nlb
-              InputArtifacts:
-                - Name: source
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Provider: CloudFormation
-                Version: "1"
-              Configuration:
-                RoleArn: !GetAtt PipelineRole.Arn
-                ActionMode: REPLACE_ON_FAILURE
-                Capabilities: CAPABILITY_NAMED_IAM
-                StackName: !Sub ${AWS::StackName}-nlb
-                TemplatePath: source::cfn/nlb.yml
-                ParameterOverrides: 
-                  !Sub
-                    - | 
-                        {
-                          "DomainName": "${DomainName}",
-                          "HostedZoneId": "${HostedZoneId}",
-                          "VpcId": "${VpcId}",
-                          "Subnets": "${SubnetIds}"
-                        }
-                    - SubnetIds: !Join [ ',', !Ref Subnets ]
             - Name: ELB-Logs
-              RunOrder: 2
+              RunOrder: 1
+              Namespace: elb-logs
               InputArtifacts:
                 - Name: source
               ActionTypeId:
@@ -196,7 +123,8 @@ Resources:
                     "S3FileVersion": "#{build.ObjectVersionId}"
                   }
             - Name: ALB-Logs
-              RunOrder: 2
+              RunOrder: 1
+              Namespace: alb-logs
               InputArtifacts:
                 - Name: source
               ActionTypeId:
@@ -218,7 +146,8 @@ Resources:
                     "S3FileVersion": "#{build.ObjectVersionId}"
                   }
             - Name: NLB-Logs
-              RunOrder: 2
+              RunOrder: 1
+              Namespace: nlb-logs
               InputArtifacts:
                 - Name: source
               ActionTypeId:
@@ -239,6 +168,83 @@ Resources:
                     "LambdaBucket": "${PipelineBucket}",
                     "S3FileVersion": "#{build.ObjectVersionId}"
                   }
+            - Name: ELB
+              RunOrder: 2
+              Namespace: elb
+              InputArtifacts:
+                - Name: source
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                RoleArn: !GetAtt PipelineRole.Arn
+                ActionMode: REPLACE_ON_FAILURE
+                Capabilities: CAPABILITY_NAMED_IAM
+                StackName: !Sub ${AWS::StackName}-elb
+                TemplatePath: source::cfn/elb.yml
+                ParameterOverrides: 
+                  !Sub
+                    - | 
+                        {
+                          "VpcId": "${VpcId}",
+                          "Subnets": "${SubnetIds}",
+                          "LogsBucket": "#{elb-logs.LogsBucket}"
+                        }
+                    - SubnetIds: !Join [ ',', !Ref Subnets ]
+            - Name: ALB
+              RunOrder: 2
+              Namespace: alb
+              InputArtifacts:
+                - Name: source
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                RoleArn: !GetAtt PipelineRole.Arn
+                ActionMode: REPLACE_ON_FAILURE
+                Capabilities: CAPABILITY_NAMED_IAM
+                StackName: !Sub ${AWS::StackName}-alb
+                TemplatePath: source::cfn/alb.yml
+                ParameterOverrides: 
+                  !Sub
+                    - | 
+                        {
+                          "VpcId": "${VpcId}",
+                          "Subnets": "${SubnetIds}",
+                          "LogsBucket": "#{alb-logs.LogsBucket}"
+                        }
+                    - SubnetIds: !Join [ ',', !Ref Subnets ]
+            - Name: NLB
+              RunOrder: 3
+              Namespace: nlb
+              InputArtifacts:
+                - Name: source
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                RoleArn: !GetAtt PipelineRole.Arn
+                ActionMode: REPLACE_ON_FAILURE
+                Capabilities: CAPABILITY_NAMED_IAM
+                StackName: !Sub ${AWS::StackName}-nlb
+                TemplatePath: source::cfn/nlb.yml
+                ParameterOverrides: 
+                  !Sub
+                    - | 
+                        {
+                          "DomainName": "${DomainName}",
+                          "HostedZoneId": "${HostedZoneId}",
+                          "VpcId": "${VpcId}",
+                          "Subnets": "${SubnetIds}",
+                          "LogsBucket": "#{nlb-logs.LogsBucket}"
+                        }
+                    - SubnetIds: !Join [ ',', !Ref Subnets ]
 
   CodeBuildProject:
     Type: AWS::CodeBuild::Project

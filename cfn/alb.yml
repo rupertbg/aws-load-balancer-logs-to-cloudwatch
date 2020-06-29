@@ -9,6 +9,9 @@ Parameters:
   Subnets:
     Type: List<AWS::EC2::Subnet::Id>
 
+  LogsBucket:
+    Type: String
+
 Resources:
 
   SecurityGroup:
@@ -26,27 +29,6 @@ Resources:
       FromPort: 80
       ToPort: 80
       CidrIp: 0.0.0.0/0
-
-  LogsBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      LifecycleConfiguration:
-        Rules:
-          - Status: Enabled
-            ExpirationInDays: 7
-
-  LogsBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: !Ref LogsBucket
-      PolicyDocument:
-        Statement:
-          - Sid: Allow load balancer to dump access logs
-            Effect: Allow
-            Action: s3:PutObject
-            Principal:
-              AWS: 783225319266
-            Resource: !Sub arn:aws:s3:::${LogsBucket}/AWSLogs/${AWS::AccountId}/*
 
   LoadBalancer:
     DependsOn: LogsBucketPolicy
@@ -94,6 +76,3 @@ Outputs:
 
   HostedZoneId:
     Value: !GetAtt LoadBalancer.CanonicalHostedZoneID
-
-  LogsBucket:
-    Value: !Ref LogsBucket

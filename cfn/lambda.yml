@@ -12,19 +12,73 @@ Parameters:
       - application
       - network
 
+  LogsBucket:
+    Type: String
+
   LambdaBucket:
     Type: String
 
   S3FileVersion:
     Type: String
 
+Conditions:
+  
+  NetworkLoadBalancer:
+    !Equals
+      - !Ref LoadBalancerType
+      - network
+
 Resources:
+
+  LogsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      LifecycleConfiguration:
+        Rules:
+          - Status: Enabled
+            ExpirationInDays: 7
+
+  LogsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref LogsBucket
+      PolicyDocument:
+        Statement:
+          !If
+            - NetworkLoadBalancer
+            - - Effect: Allow
+                Action: s3:PutObject
+                Principal:
+                  Service: delivery.logs.amazonaws.com
+                Resource: !Sub arn:aws:s3:::${LogsBucket}/AWSLogs/${AWS::AccountId}/*
+                Condition:
+                  StringEquals:
+                    s3:x-amz-acl: bucket-owner-full-control
+              - Sid: AWSLogDeliveryAclCheck
+                Effect: Allow
+                Action: s3:GetBucketAcl
+                Principal:
+                  Service: delivery.logs.amazonaws.com
+                Resource: !Sub arn:aws:s3:::${LogsBucket}
+            - - Effect: Allow
+                Action: s3:PutObject
+                Principal:
+                  AWS: 783225319266
+                Resource: !Sub arn:aws:s3:::${LogsBucket}/AWSLogs/${AWS::AccountId}/*
 
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties: 
       LogGroupName: !Sub /aws/elb/${LoadBalancerType}/${LoadBalancerName}
       RetentionInDays: 30
+
+  S3EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Lambda
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub arn:aws:s3:::${LogsBucket}
 
   Lambda:
     Type: AWS::Lambda::Function
@@ -69,4 +123,16 @@ Resources:
                 - logs:CreateLogGroup
                 - logs:CreateLogStream
                 - logs:PutLogEvents
-              Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*:log-stream:*
+              Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*
+            - Effect: Allow
+              Action:
+                - logs:DescribeLogStreams
+                - logs:DescribeLogGroups
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: !Sub ${LogGroup.Arn}*
+
+Outputs:
+
+  LogsBucket:
+    Value: !Ref LogsBucket

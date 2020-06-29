@@ -15,37 +15,10 @@ Parameters:
   Subnets:
     Type: List<AWS::EC2::Subnet::Id>
 
-Resources:
-
   LogsBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      LifecycleConfiguration:
-        Rules:
-          - Status: Enabled
-            ExpirationInDays: 7
+    Type: String
 
-  LogsBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: !Ref LogsBucket
-      PolicyDocument:
-        Statement:
-          - Sid: AWSLogDeliveryWrite
-            Effect: Allow
-            Action: s3:PutObject
-            Principal:
-              Service: delivery.logs.amazonaws.com
-            Resource: !Sub arn:aws:s3:::${LogsBucket}/AWSLogs/${AWS::AccountId}/*
-            Condition:
-              StringEquals:
-                s3:x-amz-acl: bucket-owner-full-control
-          - Sid: AWSLogDeliveryAclCheck
-            Effect: Allow
-            Action: s3:GetBucketAcl
-            Principal:
-              Service: delivery.logs.amazonaws.com
-            Resource: !Sub arn:aws:s3:::${LogsBucket}
+Resources:
 
   LoadBalancer:
     DependsOn: LogsBucketPolicy
