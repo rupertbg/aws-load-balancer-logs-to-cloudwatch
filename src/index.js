@@ -259,8 +259,8 @@ async function unpackLogData(object) {
 }
 
 async function createLogGroupIfNotExists() {
-    const result = await cloudWatchLogs.describeLogGroup({
-        logGroupName,
+    const result = await cloudWatchLogs.describeLogGroups({
+        logGroupNamePrefix: logGroupName,
     }).promise();
     if (!result.logGroups[0]) await cloudWatchLogs.createLogGroup({
         logGroupName,
