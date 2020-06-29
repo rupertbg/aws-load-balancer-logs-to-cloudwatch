@@ -37,6 +37,10 @@ Resources:
         Rules:
           - Status: Enabled
             ExpirationInDays: 7
+      NotificationConfiguration:
+        LambdaConfigurations: 
+          - Event: s3:ObjectCreated:*
+            Function: !Ref Lambda
 
   LogsBucketPolicy:
     Type: AWS::S3::BucketPolicy
