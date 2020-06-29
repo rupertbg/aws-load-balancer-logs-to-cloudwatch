@@ -198,11 +198,11 @@ function parseLine(line) {
     return parsed
 }
 
-async function sendBatch(batch, sequenceToken) {
+async function sendBatch(batch, sequenceToken, logStreamName) {
     var putLogEventParams = {
         logEvents: batch,
-        logGroupName: logGroupName,
-        logStreamName: logStreamName,
+        logGroupName,
+        logStreamName,
         sequenceToken,
     }
 
@@ -223,7 +223,7 @@ async function sendBatch(batch, sequenceToken) {
     }
 }
 
-async function sendBatches(batches, batch, sequenceToken) {
+async function sendBatches(batches, batch, sequenceToken, logStreamName) {
     batches.push(batch);
     let seqToken = sequenceToken;
     for (let i = 0; i < batches.length; i++) {
@@ -233,7 +233,7 @@ async function sendBatches(batches, batch, sequenceToken) {
         try {
             ++batch_count;
             count += batch.length;
-            seqToken = await sendBatch(seqToken, batch);
+            seqToken = await sendBatch(seqToken, batch, logStreamName);
         } catch (err) {
             console.log('Error sending batch: ', err, err.stack);
             continue;
@@ -311,5 +311,5 @@ exports.handler = async (event, context) => {
     });
 
     rl.on('line', (line) => readLines(batches, batch, batch_size, line));
-    rl.on('close', () => sendBatches(batches, batch, sequenceToken));
+    rl.on('close', () => sendBatches(batches, batch, sequenceToken, logStreamName));
 };
