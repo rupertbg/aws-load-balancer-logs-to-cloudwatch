@@ -297,9 +297,11 @@ Resources:
                 - logs:PutLogEvents
               Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*
             - Effect: Allow
+              Action: logs:DescribeLogGroups
+              Resource: '*'
+            - Effect: Allow
               Action:
                 - logs:DescribeLogStreams
-                - logs:DescribeLogGroups
                 - logs:CreateLogStream
                 - logs:PutLogEvents
               Resource: !Sub ${LogGroup.Arn}*
