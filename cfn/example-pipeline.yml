@@ -70,7 +70,7 @@ Resources:
                 RoleArn: !GetAtt PipelineRole.Arn
                 ActionMode: REPLACE_ON_FAILURE
                 StackName: !Ref AWS::StackName
-                TemplatePath: source::cfn/test-pipeline.yml
+                TemplatePath: source::cfn/example-pipeline.yml
                 Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
                 ParameterOverrides: 
                   !Sub
@@ -114,7 +114,7 @@ Resources:
                 ActionMode: REPLACE_ON_FAILURE
                 Capabilities: CAPABILITY_NAMED_IAM
                 StackName: !Sub ${AWS::StackName}-elb
-                TemplatePath: source::cfn/test-deployment.yml
+                TemplatePath: source::cfn/example.yml
                 ParameterOverrides: 
                   !Sub
                     - | 
@@ -141,7 +141,7 @@ Resources:
                 ActionMode: REPLACE_ON_FAILURE
                 Capabilities: CAPABILITY_NAMED_IAM
                 StackName: !Sub ${AWS::StackName}-alb
-                TemplatePath: source::cfn/test-deployment.yml
+                TemplatePath: source::cfn/example.yml
                 ParameterOverrides: 
                   !Sub
                     - | 
@@ -168,7 +168,7 @@ Resources:
                 ActionMode: REPLACE_ON_FAILURE
                 Capabilities: CAPABILITY_NAMED_IAM
                 StackName: !Sub ${AWS::StackName}-nlb
-                TemplatePath: source::cfn/test-deployment.yml
+                TemplatePath: source::cfn/example.yml
                 ParameterOverrides: 
                   !Sub
                     - | 
