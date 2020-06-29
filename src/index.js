@@ -322,6 +322,6 @@ exports.handler = async (event, context) => {
         return currentStream.uploadSequenceToken;
     }
 
-    rl.on('line', readLines);
-    rl.on('close', sendBatches);
+    rl.on('line', await readLines);
+    rl.on('close', await sendBatches);
 };
