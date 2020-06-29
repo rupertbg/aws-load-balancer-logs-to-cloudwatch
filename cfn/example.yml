@@ -198,7 +198,7 @@ Resources:
   LogsBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Ref AWS::StackName
+      BucketName: !Sub ${AWS::AccountId}-${AWS::StackName}
       LifecycleConfiguration:
         Rules:
           - Status: Enabled
@@ -248,7 +248,7 @@ Resources:
       FunctionName: !GetAtt Lambda.Arn
       Action: lambda:InvokeFunction
       Principal: s3.amazonaws.com
-      SourceArn: !Sub arn:aws:s3:::${AWS::StackName}
+      SourceArn: !Sub arn:aws:s3:::${AWS::AccountId}-${AWS::StackName}
       SourceAccount: !Ref AWS::AccountId
 
   Lambda:
@@ -306,6 +306,9 @@ Resources:
                 - logs:CreateLogStream
                 - logs:PutLogEvents
               Resource: !Sub ${LogGroup.Arn}*
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub arn:aws:s3:::${AWS::AccountId}-${AWS::StackName}/*
 
 Outputs:
 
