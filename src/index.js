@@ -221,16 +221,17 @@ exports.handler = async (event, context) => {
         return parsed
     }
 
-    async function sendBatch(logEvents, sequenceToken) {
+    async function sendBatch(logEvents, seqToken) {
         console.log(`Sending batch to ${logStreamName}`);
         var putLogEventParams = {
             logEvents,
             logGroupName,
             logStreamName,
-            sequenceToken,
+            sequenceToken: seqToken,
         }
 
         // sort the events in ascending order by timestamp as required by PutLogEvents
+        console.log('Sorting events');
         putLogEventParams.logEvents.sort((a, b) => {
             if (a.timestamp > b.timestamp) return 1;
             if (a.timestamp < b.timestamp) return -1;
@@ -238,6 +239,7 @@ exports.handler = async (event, context) => {
         });
 
         try {
+            console.log('Calling PutLogEvents')
             const cwPutLogEvents = await cloudWatchLogs.putLogEvents(putLogEventParams).promise();
             console.log(`Success in putting ${putLogEventParams.logEvents.length} events`);
             return cwPutLogEvents.nextSequenceToken
