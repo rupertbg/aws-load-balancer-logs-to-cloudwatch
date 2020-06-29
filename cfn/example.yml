@@ -89,7 +89,7 @@ Resources:
           ForwardConfig:
             TargetGroups: 
               - TargetGroupArn: !Ref TargetGroup
-      LoadBalancerArn: !Ref LoadBalancer
+      LoadBalancerArn: !Ref NetworkLoadBalancer
       Port: 443
       Protocol: TLS
       Certificates:
@@ -113,9 +113,9 @@ Resources:
     Type: AWS::Route53::RecordSet
     Properties:
       AliasTarget:
-        DNSName: !GetAtt LoadBalancer.DNSName
+        DNSName: !GetAtt NetworkLoadBalancer.DNSName
         EvaluateTargetHealth: false
-        HostedZoneId: !GetAtt LoadBalancer.CanonicalHostedZoneID
+        HostedZoneId: !GetAtt NetworkLoadBalancer.CanonicalHostedZoneID
       HostedZoneId: !Ref HostedZoneId
       Comment: !Sub ${AWS::StackName} DNS record for the NLB
       Name: !Ref DomainName
