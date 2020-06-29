@@ -141,6 +141,7 @@ Resources:
 
   ClassicLoadBalancer:
     Condition: isClassicLoadBalancer
+    DependsOn: LogsBucketPolicy
     Type: AWS::ElasticLoadBalancing::LoadBalancer
     Properties:
       LoadBalancerName: !Ref AWS::StackName
