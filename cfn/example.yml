@@ -240,15 +240,16 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties: 
       RetentionInDays: 30
-      LogGroupName: !Sub /aws/elb/${LoadBalancerType}
+      LogGroupName: !Sub /aws/elb/${LoadBalancerType}-test
 
   S3EventPermission:
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !Ref Lambda
+      FunctionName: !GetAtt Lambda.Arn
       Action: lambda:InvokeFunction
       Principal: s3.amazonaws.com
       SourceArn: !Sub arn:aws:s3:::${AWS::StackName}
+      SourceAccount: !Ref AWS::AccountId
 
   Lambda:
     Type: AWS::Lambda::Function
