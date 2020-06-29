@@ -232,9 +232,9 @@ async function sendBatches(batches, batch, sequenceToken, logStreamName) {
         var count = 0;
         var batch_count = 0;
         try {
+            seqToken = await sendBatch(batch, seqToken, logStreamName);
             ++batch_count;
             count += batch.length;
-            seqToken = await sendBatch(batch, seqToken, logStreamName);
         } catch (err) {
             console.log('Error sending batch: ', err, err.stack);
             continue;
@@ -244,7 +244,7 @@ async function sendBatches(batches, batch, sequenceToken, logStreamName) {
 }
 
 async function getS3Object(Bucket, Key) {
-    console.log(`Retrieving ${ Bucket }${ Key }`);
+    console.log(`Retrieving ${Bucket}${Key}`);
     return await s3.getObject({
         Bucket,
         Key,
@@ -252,6 +252,7 @@ async function getS3Object(Bucket, Key) {
 }
 
 async function unpackLogData(s3object) {
+    console.log(`Unpacking log data for ${loadBalancerType} load balancer`);
     if (loadBalancerType === "classic") return s3object.Body.toString('ascii')
     else {
         const uncompressedLogBuffer = await gunzipAsync(s3object.Body);
@@ -260,15 +261,20 @@ async function unpackLogData(s3object) {
 }
 
 async function createLogGroupIfNotExists() {
+    console.log(`Checking Log Group ${logGroupName} exists`);
     const result = await cloudWatchLogs.describeLogGroups({
         logGroupNamePrefix: logGroupName,
     }).promise();
-    if (!result.logGroups[0]) await cloudWatchLogs.createLogGroup({
-        logGroupName,
-    }).promise();
+    if (!result.logGroups[0]) {
+        console.log(`${logGroupName} exists`);
+        await cloudWatchLogs.createLogGroup({
+            logGroupName,
+        }).promise();
+    }
 }
 
 async function getLogStreamSequenceToken(logStreamName) {
+    console.log(`Checking Log Streams ${logGroupName}/${logStreamName}`);
     let currentStream;
     const cwlDescribeStreams = await cloudWatchLogs.describeLogStreams({
         logGroupName,
@@ -277,6 +283,7 @@ async function getLogStreamSequenceToken(logStreamName) {
 
     if (cwlDescribeStreams.logStreams[0]) currentStream = cwlDescribeStreams.logStreams[0]
     else {
+        console.log(`Creating Log Stream ${logGroupName}/${logStreamName}`);
         await cloudWatchLogs.createLogStream({
             logGroupName,
             logStreamName,
@@ -301,6 +308,7 @@ exports.handler = async (event, context) => {
 
     let sequenceToken = await getLogStreamSequenceToken(logStreamName);
 
+    console.log('Parsing log lines')
     var batches = [];
     var batch = [];
     var batch_size = 0;
