@@ -10,15 +10,19 @@ Parameters:
 
   DomainName:
     Type: String
+    Description: Used to deploy a Network Load Balancer with TLS
 
   HostedZoneId:
     Type: String
+    Description: Used to deploy a Network Load Balancer with TLS
 
   VpcId:
     Type: AWS::EC2::VPC::Id
+    Description: The VPC to deploy all Load Balancer types
 
   Subnets:
     Type: List<AWS::EC2::Subnet::Id>
+    Description: The Subnets to deploy all Load Balancer types
 
 Resources:
   PipelineBucket:
