@@ -241,7 +241,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties: 
       RetentionInDays: 30
-      LogGroupName: !Sub /aws/elb/${LoadBalancerType}-test
+      LogGroupName: !Sub /aws/elb/testing/${LoadBalancerType}
 
   S3EventPermission:
     Type: AWS::Lambda::Permission
