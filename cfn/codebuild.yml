@@ -1,5 +1,18 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
+Parameters:
+
+  CodeBuildRoleArn:
+    Type: String
+    Default: none
+
+Conditions:
+  
+  CreateCodeBuildRole:
+    !Equals
+      - !Ref CodeBuildRoleArn
+      - none
+
 Resources:
 
   LambdaCodeBucket:
@@ -12,7 +25,11 @@ Resources:
     Type: AWS::CodeBuild::Project
     Properties:
       TimeoutInMinutes: 10
-      ServiceRole: !GetAtt CodeBuildRole.Arn
+      ServiceRole:
+        !If
+          - CreateCodeBuildRole
+          - !GetAtt CodeBuildRole.Arn
+          - !Ref CodeBuildRoleArn
       Artifacts:
         Type: CODEPIPELINE
       Environment:
@@ -41,6 +58,7 @@ Resources:
                 - export ObjectVersionId="$(aws s3api put-object --bucket ${LambdaCodeBucket} --key code.zip --body code.zip --output text --query VersionId)"
 
   CodeBuildRole:
+    Condition: CreateCodeBuildRole
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -75,7 +93,11 @@ Resources:
 Outputs:
 
   CodeBuildRole:
-    Value: !GetAtt CodeBuildRole.Arn
+    Value: 
+      !If
+        - CreateCodeBuildRole
+        - !GetAtt CodeBuildRole.Arn
+        - !Ref CodeBuildRoleArn
 
   CodeBuildProject:
     Value: !Ref CodeBuildProject
