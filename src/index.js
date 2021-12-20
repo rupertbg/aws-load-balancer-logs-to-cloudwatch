@@ -169,6 +169,8 @@ exports.handler = async (event, context) => {
 
         var tval = Date.parse(ts);
 
+        if (!plaintextLogs) line = JSON.stringify(parseLine(line));
+        
         var event_size = line.length + LOG_EVENT_OVERHEAD;
         batch_size += event_size;
         if (batch_size >= MAX_BATCH_SIZE ||
@@ -178,8 +180,6 @@ exports.handler = async (event, context) => {
             batch = [];
             batch_size = event_size;
         }
-
-        if (!plaintextLogs) line = JSON.stringify(parseLine(line));
 
         batch.push({
             message: line,
