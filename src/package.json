@@ -17,6 +17,6 @@
   },
   "homepage": "https://github.com/rupertbg/aws-load-balancer-logs-to-cloudwatch#readme",
   "dependencies": {
-    "aws-sdk": "^2.706.0"
+    "aws-sdk": "^2.814.0"
   }
 }
