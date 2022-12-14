@@ -1,5 +1,6 @@
 module "docker_image" {
   source = "terraform-aws-modules/lambda/aws//modules/docker-build"
+  version = "4.7.1"
 
   create_ecr_repo = true
   ecr_repo        = var.ecr_repo_name
@@ -11,6 +12,7 @@ module "docker_image" {
 
 module "lambda_function" {
   source = "terraform-aws-modules/lambda/aws"
+  version = "4.7.1"
 
   image_uri    = module.docker_image.image_uri
   package_type = "Image"
