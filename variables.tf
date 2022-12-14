@@ -10,15 +10,27 @@ variable "lambda_tags" {
   default     = {}
 }
 
+variable "ecr_repo_name" {
+  description = "Name of ECR repository for Lambda image"
+  type        = string
+  default     = "aws-load-balancer-logs-to-cloudwatch"
+}
+
+variable "scan_on_push" {
+  description = "Indicates whether images are scanned after being pushed to the repository"
+  type        = bool
+  default     = false
+}
+
 variable "log_group_name" {
   description = "A CloudWatch log group name to load data into it"
-  type = string
+  type        = string
 }
 
 variable "load_balancer_type" {
   description = "value"
 
-    validation {
+  validation {
     condition     = length(regexall("^(classic|application|network)$", var.type)) > 0
     error_message = "ERROR: Valid types are `classic`, `application` or `network`"
   }

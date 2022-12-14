@@ -2,9 +2,11 @@ module "docker_image" {
   source = "terraform-aws-modules/lambda/aws//modules/docker-build"
 
   create_ecr_repo = true
-  ecr_repo        = "aws-load-balancer-logs-to-cloudwatch"
+  ecr_repo        = var.ecr_repo_name
   image_tag       = "latest"
   source_path     = "src"
+  ecr_repo_tags   = var.ecr_repo_tags
+  scan_on_push    = var.scan_on_push
 }
 
 module "lambda_function" {
