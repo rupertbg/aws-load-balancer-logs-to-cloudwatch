@@ -19,7 +19,7 @@ const plaintextLogs = process.env.PLAINTEXT_LOGS;
 
 if (process.env.SENTRY_DSN) {
     Sentry.AWSLambda.init({
-        dsn: process.env.process.env.SENTRY_DSN,
+        dsn: process.env.SENTRY_DSN,
         tracesSampleRate: 0.0,
     });
 }else{
