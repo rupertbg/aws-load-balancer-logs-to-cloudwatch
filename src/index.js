@@ -17,6 +17,15 @@ const logGroupName = process.env.LOG_GROUP_NAME;
 const loadBalancerType = process.env.LOAD_BALANCER_TYPE;
 const plaintextLogs = process.env.PLAINTEXT_LOGS;
 
+if (process.env.SENTRY_DSN) {
+    Sentry.AWSLambda.init({
+        dsn: process.env.process.env.SENTRY_DSN,
+        tracesSampleRate: 0.0,
+    });
+}else{
+    console.log('No SENTRY_DSN environment variable. Skipping Sentry initialization.');
+}
+
 const MAX_BATCH_SIZE = 1048576; // maximum size in bytes of Log Events (with overhead) per invocation of PutLogEvents
 const MAX_BATCH_COUNT = 10000; // maximum number of Log Events per invocation of PutLogEvents
 const LOG_EVENT_OVERHEAD = 26; // bytes of overhead per Log Event
@@ -330,3 +339,7 @@ exports.handler = async (event, context) => {
     rl.on('line', await readLines);
     rl.on('close', await sendBatches);
 };
+
+if (process.env.SENTRY_DSN) {
+  exports.handler = Sentry.AWSLambda.wrapHandler(exports.handler);
+}
