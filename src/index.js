@@ -274,6 +274,7 @@ exports.handler = async (event, context) => {
                 ++batch_count;
                 count += logEvents.length;
             } catch (err) {
+                Sentry.captureException(err);
                 console.log('Error sending batch: ', err, err.stack);
                 continue;
             }
