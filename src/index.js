@@ -192,58 +192,72 @@ exports.handler = async (event) => {
   const loadBalancerType = getEnvVar(loadBalancerTypeEnvKey);
   try {
     console.log(JSON.stringify(event));
-    const bucket = event.Records[0].s3.bucket.name;
-    const key = decodeURIComponent(
-      event.Records[0].s3.object.key.replace(/\+/g, " ")
-    );
-    const logStreamName = key;
-    const s3object = await getS3Object(bucket, key);
-    const logData = await unpackLogData(s3object);
+    const records = event?.Records;
+    if (!records) throw new Error("No records found in event");
 
-    let logType;
-    switch (true) {
-      case key.includes("conn_log"):
-        logType = "connection";
-        break;
-      default:
-        logType = "access";
-    }
-
-    console.log(`${loadBalancerType} load balancer: ${logType} log`);
-
-    let sequenceToken = await getLogStreamSequenceToken(
-      logGroupName,
-      logStreamName
-    );
-
-    console.log("Parsing log lines");
-    var batcher = {
-      batches: [],
-      batch: [],
-      batch_size: 0,
-    };
-    var bufferStream = new Readable();
-    bufferStream.push(logData);
-    bufferStream.push(null);
-
-    await new Promise((resolve, reject) => {
-      try {
-        let rl = readline.createInterface({ input: bufferStream });
-        rl.on("line", (line) => readLogLine(logType, batcher, line));
-        rl.on("close", async () => {
-          console.log("Finished reading log lines");
-          await readLogClose(
-            batcher,
-            logGroupName,
-            logStreamName,
-            sequenceToken
-          );
-          resolve();
-        });
-      } catch (err) {
-        reject(err);
+    for (let record of records) {
+      if (record?.eventSource === "aws:sqs") record = JSON.parse(record.body);
+      if (record?.eventSource !== "aws:s3") {
+        console.warn("Ignoring non-S3 event source");
+        continue;
       }
-    });
+      const bucket = record?.s3?.bucket?.name;
+      if (!bucket) throw new Error("No bucket found in record");
+
+      const key = decodeURIComponent(
+        record?.s3?.object?.key?.replace(/\+/g, " ")
+      );
+      if (!key) throw new Error("No key found in record");
+
+      const logStreamName = key;
+      const s3object = await getS3Object(bucket, key);
+      const logData = await unpackLogData(s3object);
+
+      let logType;
+      switch (true) {
+        case key.includes("conn_log"):
+          logType = "connection";
+          break;
+        default:
+          logType = "access";
+      }
+
+      console.log(`${loadBalancerType} load balancer: ${logType} log`);
+
+      let sequenceToken = await getLogStreamSequenceToken(
+        logGroupName,
+        logStreamName
+      );
+
+      console.log("Parsing log lines");
+      var batcher = {
+        batches: [],
+        batch: [],
+        batch_size: 0,
+      };
+      var bufferStream = new Readable();
+      bufferStream.push(logData);
+      bufferStream.push(null);
+
+      await new Promise((resolve, reject) => {
+        try {
+          let rl = readline.createInterface({ input: bufferStream });
+          rl.on("line", (line) => readLogLine(logType, batcher, line));
+          rl.on("close", async () => {
+            console.log("Finished reading log lines");
+            await readLogClose(
+              batcher,
+              logGroupName,
+              logStreamName,
+              sequenceToken
+            );
+            resolve();
+          });
+        } catch (err) {
+          reject(err);
+        }
+      });
+    }
   } catch (err) {
     console.log("Error: ", err, err.stack);
     return;

@@ -63,21 +63,35 @@ async function setupTests(logFile, loadBalancerType) {
 describe("log delivery", () => {
   for (let loadBalancerType in logFileTests) {
     for (let logType in logFileTests[loadBalancerType]) {
-      it(`should deliver ${loadBalancerType} load balancer ${logType} logs correctly`, async () => {
-        const logFile = logFileTests[loadBalancerType][logType].filename;
-        const logEventParamObjs = await setupTests(logFile, loadBalancerType);
+      const logFile = logFileTests[loadBalancerType][logType].filename;
+      const s3Event = {
+        eventSource: "aws:s3",
+        s3: {
+          bucket: { name: mockBucketName },
+          object: { key: logFile },
+        },
+      };
+      const sqsEvent = {
+        eventSource: "aws:sqs",
+        body: JSON.stringify(s3Event),
+      };
 
+      let logEventParamObjs;
+      it(`should deliver ${loadBalancerType} load balancer ${logType} logs correctly when called via s3`, async () => {
+        logEventParamObjs = await setupTests(logFile, loadBalancerType);
         await handler({
-          Records: [
-            {
-              s3: {
-                bucket: { name: mockBucketName },
-                object: { key: logFile },
-              },
-            },
-          ],
+          Records: [s3Event],
         });
+        expect(logEventParamObjs).toEqual(
+          logFileTests[loadBalancerType][logType].result
+        );
+      });
 
+      it(`should deliver ${loadBalancerType} load balancer ${logType} logs correctly when called via sqs`, async () => {
+        logEventParamObjs = await setupTests(logFile, loadBalancerType);
+        await handler({
+          Records: [sqsEvent],
+        });
         expect(logEventParamObjs).toEqual(
           logFileTests[loadBalancerType][logType].result
         );
