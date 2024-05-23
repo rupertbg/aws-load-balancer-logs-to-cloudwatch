@@ -135,7 +135,8 @@ function readLogLine(logType, batcher, line) {
     return console.log(`No time field found in log type: ${logType}`);
   try {
     const parsed = parseLine(fieldNames, line);
-    const ts = line.split(" ", timeIndex + 1)[timeIndex];
+    let ts = line.split(" ", timeIndex + 1)[timeIndex];
+    if (!ts.endsWith("Z")) ts += "Z";
     const tval = Date.parse(ts);
     const event_size = line.length + LOG_EVENT_OVERHEAD;
     const plaintextLogs = getEnvVar(plaintextLogsEnvKey);
