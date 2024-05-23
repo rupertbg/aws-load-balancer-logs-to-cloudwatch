@@ -39,7 +39,7 @@ async function setupTests(logFile, loadBalancerType) {
       Body: gzippedLogFileContents,
     });
 
-  // Mock the CloudWatch DescribeLogStreams command to return an empty array
+  // Mock the CloudWatch DescribeLogStreams command
   cwLogsMock.on(DescribeLogStreamsCommand).resolves({
     logStreams: [
       {
@@ -56,8 +56,6 @@ async function setupTests(logFile, loadBalancerType) {
       nextSequenceToken: "token",
     };
   });
-
-  // Run the Lambda handler with the mocked S3 event
 
   return logEventParamObjs;
 }
