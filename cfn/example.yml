@@ -15,6 +15,7 @@ Parameters:
 
   Subnets:
     Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnets for the load balancer, requires at least two subnets
 
   LoadBalancerType:
     Type: String
@@ -23,11 +24,9 @@ Parameters:
       - application
       - network
 
-  LambdaBucket:
+  ImageUri:
     Type: String
-
-  S3FileVersion:
-    Type: String
+    Default: public.ecr.aws/l8n5z4p2/awslb2cwlogs:latest
 
 Conditions:
 
@@ -63,12 +62,16 @@ Resources:
       Scheme: internet-facing
       Type: network
       IpAddressType: ipv4
+      Subnets: !Ref Subnets
       LoadBalancerAttributes:
         - Key: access_logs.s3.enabled
-          Value: 'true'
+          Value: true
         - Key: access_logs.s3.bucket
           Value: !Ref LogsBucket
-      Subnets: !Ref Subnets
+        - Key: connection_logs.s3.enabled
+          Value: true
+        - Key: connection_logs.s3.bucket
+          Value: !Ref LogsBucket
 
   Certificate:
     Condition: isNetworkLoadBalancer
@@ -151,8 +154,8 @@ Resources:
         EmitInterval: 5
         S3BucketName: !Ref LogsBucket
       Listeners:
-        - InstancePort: '80'
-          LoadBalancerPort: '80'
+        - InstancePort: 80
+          LoadBalancerPort: 80
           Protocol: HTTP
       Subnets: !Ref Subnets
       SecurityGroups:
@@ -167,13 +170,13 @@ Resources:
       Scheme: internet-facing
       LoadBalancerAttributes:
         - Key: idle_timeout.timeout_seconds
-          Value: '30'
+          Value: 30
         - Key: access_logs.s3.enabled
-          Value: 'true'
+          Value: true
         - Key: access_logs.s3.bucket
           Value: !Ref LogsBucket
         - Key: routing.http.drop_invalid_header_fields.enabled
-          Value: 'true'
+          Value: true
       Subnets: !Ref Subnets
       SecurityGroups:
         - !Ref SecurityGroup
@@ -191,7 +194,7 @@ Resources:
                 "statusCode": 200,
                 "message": "Wow"
               }
-            StatusCode: '200'
+            StatusCode: 200
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Port: 80
       Protocol: HTTP
@@ -221,7 +224,7 @@ Resources:
                 Action: s3:PutObject
                 Principal:
                   Service: delivery.logs.amazonaws.com
-                Resource: !Sub arn:aws:s3:::${LogsBucket}/AWSLogs/${AWS::AccountId}/*
+                Resource: !Sub arn:${AWS::Partition}:s3:::${LogsBucket}/AWSLogs/${AWS::AccountId}/*
                 Condition:
                   StringEquals:
                     s3:x-amz-acl: bucket-owner-full-control
@@ -230,14 +233,16 @@ Resources:
                 Action: s3:GetBucketAcl
                 Principal:
                   Service: delivery.logs.amazonaws.com
-                Resource: !Sub arn:aws:s3:::${LogsBucket}
+                Resource: !Sub arn:${AWS::Partition}:s3:::${LogsBucket}
             - - Effect: Allow
                 Action: s3:PutObject
                 Principal:
                   AWS: 783225319266
-                Resource: !Sub arn:aws:s3:::${LogsBucket}/AWSLogs/${AWS::AccountId}/*
+                Resource: !Sub arn:${AWS::Partition}:s3:::${LogsBucket}/AWSLogs/${AWS::AccountId}/*
 
   LogGroup:
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
     Type: AWS::Logs::LogGroup
     Properties: 
       RetentionInDays: 30
@@ -249,26 +254,22 @@ Resources:
       FunctionName: !GetAtt Lambda.Arn
       Action: lambda:InvokeFunction
       Principal: s3.amazonaws.com
-      SourceArn: !Sub arn:aws:s3:::${AWS::AccountId}-${AWS::StackName}
+      SourceArn: !Sub arn:${AWS::Partition}:s3:::${AWS::AccountId}-${AWS::StackName}
       SourceAccount: !Ref AWS::AccountId
 
   Lambda:
     Type: AWS::Lambda::Function
     Properties:
       Handler: index.handler
-      Runtime: nodejs12.x
       Timeout: 60
       Role: !GetAtt LambdaRole.Arn
-      TracingConfig:
-        Mode: Active
       Environment:
         Variables:
           LOG_GROUP_NAME: !Ref LogGroup
           LOAD_BALANCER_TYPE: !Ref LoadBalancerType
+      PackageType: Image
       Code:
-        S3Bucket: !Ref LambdaBucket
-        S3Key: code.zip
-        S3ObjectVersion: !Ref S3FileVersion
+        ImageUri: !Ref ImageUri
 
   LambdaRole:
     Type: AWS::IAM::Role
@@ -287,15 +288,10 @@ Resources:
           Statement:
             - Effect: Allow
               Action:
-                - xray:PutTelemetryRecords
-                - xray:PutTraceSegments
-              Resource: '*'
-            - Effect: Allow
-              Action:
                 - logs:CreateLogGroup
                 - logs:CreateLogStream
                 - logs:PutLogEvents
-              Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*
+              Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*
             - Effect: Allow
               Action: logs:DescribeLogGroups
               Resource: '*'
@@ -307,7 +303,7 @@ Resources:
               Resource: !Sub ${LogGroup.Arn}*
             - Effect: Allow
               Action: s3:GetObject
-              Resource: !Sub arn:aws:s3:::${AWS::AccountId}-${AWS::StackName}/*
+              Resource: !Sub arn:${AWS::Partition}:s3:::${AWS::AccountId}-${AWS::StackName}/*
 
 Outputs:
 

@@ -1,5 +1,5 @@
 {
-  "name": "aws-load-balancer-logs-to-cloudwatch",
+  "name": "awslb2cwlogs",
   "version": "1.0.0",
   "description": "Stream AWS Load Balancer Logs that are delivered to S3 into CloudWatch Logs for use with features like CloudWatch Logs Insights.",
   "main": "index.js",
@@ -20,10 +20,14 @@
   },
   "keywords": [
     "AWS",
+    "Amazon Web Services",
     "CloudWatch",
     "ALB",
+    "Application Load Balancer",
     "NLB",
+    "Network Load Balancer",
     "ELB",
+    "Elastic Load Balancer",
     "logs"
   ],
   "author": "Rupert Bryant-Greene <ru@metaphor.cloud>",
