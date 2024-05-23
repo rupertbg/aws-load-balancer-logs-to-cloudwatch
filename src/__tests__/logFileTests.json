@@ -69,11 +69,11 @@
           "logEvents": [
             {
               "message": "{\"type\":\"tls\",\"version\":2,\"time\":\"2018-12-20T02:59:40\",\"elb\":\"net/my-network-loadbalancer/c6e77e28c25b2234\",\"listener\":\"g3d4b5e8bb8464cd\",\"client:port\":\"72.21.218.154:51341\",\"destination:port\":\"172.100.100.185:443\",\"connection_time\":5,\"tls_handshake_time\":2,\"received_bytes\":98,\"sent_bytes\":246,\"incoming_tls_alert\":\"-\",\"chosen_cert_arn\":\"arn:aws:acm:us-east-2:671290407336:certificate/2a108f19-aded-46b0-8493-c63eb1ef4a99\",\"chosen_cert_serial\":\"-\",\"tls_cipher\":\"ECDHE-RSA-AES128-SHA\",\"tls_protocol_version\":\"tlsv12\",\"tls_named_group\":\"-\",\"domain_name\":\"my-network-loadbalancer-c6e77e28c25b2234.elb.us-east-2.amazonaws.com\",\"alpn_fe_protocol\":\"-\",\"alpn_be_protocol\":\"-\",\"alpn_client_preference_list\":\"-\"}",
-              "timestamp": 1545227980000
+              "timestamp": 1545274780000
             },
             {
               "message": "{\"type\":\"tls\",\"version\":2,\"time\":\"2020-04-01T08:51:42\",\"elb\":\"net/my-network-loadbalancer/c6e77e28c25b2234\",\"listener\":\"g3d4b5e8bb8464cd\",\"client:port\":\"72.21.218.154:51341\",\"destination:port\":\"172.100.100.185:443\",\"connection_time\":5,\"tls_handshake_time\":2,\"received_bytes\":98,\"sent_bytes\":246,\"incoming_tls_alert\":\"-\",\"chosen_cert_arn\":\"arn:aws:acm:us-east-2:671290407336:certificate/2a108f19-aded-46b0-8493-c63eb1ef4a99\",\"chosen_cert_serial\":\"-\",\"tls_cipher\":\"ECDHE-RSA-AES128-SHA\",\"tls_protocol_version\":\"tlsv12\",\"tls_named_group\":\"-\",\"domain_name\":\"my-network-loadbalancer-c6e77e28c25b2234.elb.us-east-2.amazonaws.com\",\"alpn_fe_protocol\":\"h2\",\"alpn_be_protocol\":\"h2\",\"alpn_client_preference_list\":\"h2,http/1.1\"}",
-              "timestamp": 1585684302000
+              "timestamp": 1585731102000
             }
           ],
           "logGroupName": "network",
