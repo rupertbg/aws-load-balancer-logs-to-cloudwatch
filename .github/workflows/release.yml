@@ -22,9 +22,11 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
+        working-directory: src
         run: npm i
 
       - name: Run tests
+        working-directory: src
         run: npm test
 
   build:
