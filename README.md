@@ -1,6 +1,9 @@
 # AWS Load Balancer S3 Logs to CloudWatch Logs
 ![unit tests](https://github.com/rupertbg/aws-load-balancer-logs-to-cloudwatch/actions/workflows/tests.yml/badge.svg?branch=master)
 
+Latest release [available on ECR Public](https://gallery.ecr.aws/l8n5z4p2/awslb2cwlogs):
+`public.ecr.aws/l8n5z4p2/awslb2cwlogs:latest`
+
 
 Stream AWS Load Balancer Logs that are delivered to S3 into CloudWatch Logs for use with features like CloudWatch Logs Insights.
 
@@ -17,6 +20,35 @@ The Lambda takes the following environment variables:
   - `LOG_GROUP_NAME`: The name of the Log Group to ship to
   - `LOAD_BALANCER_TYPE`: The load balancer type. Must be `classic`, `application` or `network`
   - `PLAINTEXT_LOGS`: If set to anything will ship the plaintext log line instead of parsing it to JSON
+
+The Lambda requires an IAM Policy similar to:
+
+```json
+{
+  "Version": "2012-10-17T00:00:00.000Z",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "logs:DescribeLogGroups",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:DescribeLogStreams",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:*:logs:*:REPLACE_WITH_AWS_ACCOUNT_ID:log-group:REPLACE_WITH_LOG_GROUP_NAME"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:*:s3:::REPLACE_WITH_LOG_BUCKET_NAME/*"
+    }
+  ]
+}
+```
 
 # Credits
 Based on https://github.com/amazon-archives/cloudwatch-logs-centralize-logs
