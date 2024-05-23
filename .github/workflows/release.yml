@@ -66,8 +66,8 @@ jobs:
           push: true
           provenance: false
           tags: >-
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.REGISTRY_ALIAS }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.REGISTRY_ALIAS }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.REGISTRY_ALIAS }}/${{ env.IMAGE_NAME }}:${{ github.sha }},
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.REGISTRY_ALIAS }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }},
             ${{ steps.login-ecr.outputs.registry }}/${{ env.REGISTRY_ALIAS }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha,scope=${{ env.IMAGE_NAME }}
           cache-to: ${{ format('type=gha,mode=max,scope={0}', env.IMAGE_NAME)}}
