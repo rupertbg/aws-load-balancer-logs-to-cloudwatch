@@ -2,7 +2,8 @@
 ![unit tests](https://github.com/rupertbg/aws-load-balancer-logs-to-cloudwatch/actions/workflows/tests.yml/badge.svg?branch=master)
 
 Latest release [available on ECR Public](https://gallery.ecr.aws/l8n5z4p2/awslb2cwlogs):
-`public.ecr.aws/l8n5z4p2/awslb2cwlogs:latest`
+`public.ecr.aws/metaphor/awslb2cwlogs:arm64-latest`
+`public.ecr.aws/metaphor/awslb2cwlogs:amd64-latest`
 
 
 Stream AWS Load Balancer Logs that are delivered to S3 into CloudWatch Logs for use with features like CloudWatch Logs Insights.

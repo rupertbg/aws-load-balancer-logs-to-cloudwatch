@@ -57,17 +57,30 @@ jobs:
           mask-password: "true"
           registry-type: public
 
-      - name: Build and push
+      - name: Build and push arm64 image
         uses: docker/build-push-action@v5
-        id: image-build
         with:
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/arm64
           file: ${{ env.DOCKERFILE_PATH }}
           push: true
           provenance: false
           tags: >-
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.REGISTRY_ALIAS }}/${{ env.IMAGE_NAME }}:${{ github.sha }},
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.REGISTRY_ALIAS }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }},
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.REGISTRY_ALIAS }}/${{ env.IMAGE_NAME }}:latest
-          cache-from: type=gha,scope=${{ env.IMAGE_NAME }}
-          cache-to: ${{ format('type=gha,mode=max,scope={0}', env.IMAGE_NAME)}}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.REGISTRY_ALIAS }}/${{ env.IMAGE_NAME }}:arm64-${{ github.sha }},
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.REGISTRY_ALIAS }}/${{ env.IMAGE_NAME }}:arm64-${{ github.ref_name }},
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.REGISTRY_ALIAS }}/${{ env.IMAGE_NAME }}:arm64-latest
+          cache-from: type=gha,scope=arm64-${{ env.IMAGE_NAME }}
+          cache-to: ${{ format('type=gha,mode=max,scope=arm64-{0}', env.IMAGE_NAME)}}
+
+      - name: Build and push amd64 image
+        uses: docker/build-push-action@v5
+        with:
+          platforms: linux/amd64
+          file: ${{ env.DOCKERFILE_PATH }}
+          push: true
+          provenance: false
+          tags: >-
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.REGISTRY_ALIAS }}/${{ env.IMAGE_NAME }}:amd64-${{ github.sha }},
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.REGISTRY_ALIAS }}/${{ env.IMAGE_NAME }}:amd64-${{ github.ref_name }},
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.REGISTRY_ALIAS }}/${{ env.IMAGE_NAME }}:amd64-latest
+          cache-from: type=gha,scope=amd64-${{ env.IMAGE_NAME }}
+          cache-to: ${{ format('type=gha,mode=max,scope=amd64-{0}', env.IMAGE_NAME)}}
