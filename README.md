@@ -1,7 +1,7 @@
 # AWS Load Balancer S3 Logs to CloudWatch Logs
 ![unit tests](https://github.com/rupertbg/aws-load-balancer-logs-to-cloudwatch/actions/workflows/tests.yml/badge.svg?branch=master)
 
-Latest release [available on ECR Public](https://gallery.ecr.aws/l8n5z4p2/awslb2cwlogs):
+Latest release [available on ECR Public](https://gallery.ecr.aws/metaphor/awslb2cwlogs):
 `public.ecr.aws/metaphor/awslb2cwlogs:arm64-latest`
 `public.ecr.aws/metaphor/awslb2cwlogs:amd64-latest`
 
