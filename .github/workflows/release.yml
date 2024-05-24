@@ -6,7 +6,7 @@ on:
       - published
 
 env:
-  REGISTRY_ALIAS: l8n5z4p2
+  REGISTRY_ALIAS: metaphor
   IMAGE_NAME: awslb2cwlogs
   DOCKERFILE_PATH: Dockerfile
 
