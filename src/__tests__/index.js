@@ -67,15 +67,15 @@ async function setupTests(envVars, logType) {
 async function runTest(envVars, logType, inputEvent) {
   const loadBalancerType = envVars.LOAD_BALANCER_TYPE;
   const logEventParamObjs = await setupTests(envVars, logType);
-  await handler(inputEvent);
-  expect(logEventParamObjs).toEqual(
-    logFileTests[loadBalancerType][logType].result
-  );
+  return {
+    result: await handler(inputEvent),
+    logEventParamObjs,
+  };
 }
 
-describe("log delivery", () => {
-  for (let loadBalancerType in logFileTests) {
-    for (let logType in logFileTests[loadBalancerType]) {
+for (let loadBalancerType in logFileTests) {
+  for (let logType in logFileTests[loadBalancerType]) {
+    describe(`${loadBalancerType} load balancer ${logType} log delivery`, () => {
       const logFile = logFileTests[loadBalancerType][logType].filename;
       const s3Event = {
         eventSource: "aws:s3",
@@ -92,9 +92,8 @@ describe("log delivery", () => {
         }),
       };
 
-      let logEventParamObjs;
       it(`should deliver ${loadBalancerType} load balancer ${logType} logs correctly when called via s3`, async () => {
-        await runTest(
+        const { result, logEventParamObjs } = await runTest(
           {
             LOG_GROUP_NAME: loadBalancerType,
             LOAD_BALANCER_TYPE: loadBalancerType,
@@ -104,10 +103,14 @@ describe("log delivery", () => {
             Records: [s3Event],
           }
         );
+        expect(logEventParamObjs).toEqual(
+          logFileTests[loadBalancerType][logType].result
+        );
+        expect(result).toEqual(undefined);
       });
 
       it(`should deliver ${loadBalancerType} load balancer ${logType} logs correctly when called via sqs`, async () => {
-        await runTest(
+        const { result, logEventParamObjs } = await runTest(
           {
             LOG_GROUP_NAME: loadBalancerType,
             LOAD_BALANCER_TYPE: loadBalancerType,
@@ -117,7 +120,70 @@ describe("log delivery", () => {
             Records: [sqsEvent],
           }
         );
+        expect(logEventParamObjs).toEqual(
+          logFileTests[loadBalancerType][logType].result
+        );
+        expect(result).toEqual({
+          batchItemFailures: [],
+        });
       });
-    }
+    });
+    describe(`${loadBalancerType} load balancer ${logType} sqs failures`, () => {
+      it("should return a batchItemFailure when the record is invalid", async () => {
+        const invalidRecord = {
+          eventSource: "aws:sqs",
+          messageId: "invalid",
+          body: "invalid",
+        };
+        const { result, logEventParamObjs } = await runTest(
+          {
+            LOG_GROUP_NAME: "sqs-tests",
+            LOAD_BALANCER_TYPE: "application",
+          },
+          logType,
+          {
+            Records: [invalidRecord],
+          }
+        );
+        expect(logEventParamObjs).toEqual([]);
+        expect(result).toEqual({
+          batchItemFailures: [
+            {
+              itemIdentifier: "invalid",
+            },
+          ],
+        });
+      });
+      it("should continue if no records are found in the event", async () => {
+        const { result, logEventParamObjs } = await runTest(
+          {
+            LOG_GROUP_NAME: "sqs-tests",
+            LOAD_BALANCER_TYPE: "application",
+          },
+          logType,
+          {}
+        );
+        expect(logEventParamObjs).toEqual([]);
+        expect(result).toEqual(undefined);
+      });
+      it("should ignore events that are not an s3 or sqs event", async () => {
+        const { result, logEventParamObjs } = await runTest(
+          {
+            LOG_GROUP_NAME: "sqs-tests",
+            LOAD_BALANCER_TYPE: "application",
+          },
+          logType,
+          {
+            Records: [
+              {
+                eventSource: "aws:lambda",
+              },
+            ],
+          }
+        );
+        expect(logEventParamObjs).toEqual([]);
+        expect(result).toEqual(undefined);
+      });
+    });
   }
-});
+}

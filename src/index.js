@@ -263,32 +263,37 @@ async function processS3Record(record, logGroupName, loadBalancerType) {
 }
 
 exports.handler = async (event) => {
-  try {
-    console.log(JSON.stringify(event));
-    const logGroupName = getEnvVar(logGroupNameEnvKey);
-    const loadBalancerType = getEnvVar(loadBalancerTypeEnvKey);
-    let records = event?.Records;
-    if (!records) throw new Error("No records found in event");
+  console.log(JSON.stringify(event));
+  const logGroupName = getEnvVar(logGroupNameEnvKey);
+  const loadBalancerType = getEnvVar(loadBalancerTypeEnvKey);
+  let records = event?.Records;
+  if (!records) return;
 
-    for (let record of records) {
-      switch (record?.eventSource) {
-        case "aws:s3":
-          await processS3Record(record, logGroupName, loadBalancerType);
-          break;
-        case "aws:sqs":
+  let batchItemFailures;
+  for (let record of records) {
+    switch (record?.eventSource) {
+      case "aws:s3":
+        await processS3Record(record, logGroupName, loadBalancerType);
+        break;
+      case "aws:sqs":
+        if (!batchItemFailures) batchItemFailures = [];
+        try {
           const sqsRecordBody = JSON.parse(record?.body);
           for (let s3Event of sqsRecordBody?.Records) {
             await processS3Record(s3Event, logGroupName, loadBalancerType);
           }
-          break;
-        default:
-          throw new Error("Unknown event type");
-      }
+        } catch (err) {
+          console.log("Error processing SQS record: ", err, err.stack);
+          batchItemFailures.push({ itemIdentifier: record?.messageId });
+        }
+        break;
+      default:
+        console.warn(`Unknown event source: ${record?.eventSource}`);
     }
-  } catch (err) {
-    console.log("Error: ", err, err.stack);
-    return;
-  } finally {
-    console.log("Finished");
+  }
+  console.log("Finished processing records");
+  if (batchItemFailures !== undefined) {
+    console.log("Batch item failures: ", batchItemFailures);
+    return { batchItemFailures };
   }
 };
