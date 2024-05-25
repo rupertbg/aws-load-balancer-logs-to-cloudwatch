@@ -13,17 +13,24 @@ Stream AWS Load Balancer Logs that are delivered to S3 into CloudWatch Logs for 
 
 Logs are loaded from S3 as they are created using an [S3 Event Notification](https://docs.aws.amazon.com/lambda/latest/dg/with-s3.html). The logs are then parsed into JSON format and shipped to Cloudwatch Logs.
 
-
-
 # Usage
 `cfn/example.yml` shows how to deploy the Lambda alongside Classic, Application or Network Load Balancers. Use this template as a starting point for your deployment.
 
+## ECR Public
+To access the public ECR image directly in a Lambda you will either need to create a [pull through cache](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache.html) for ECR Public, or use the public image URI as the `FROM` directive in your own private dockerfile.
+
+If you are using a pull through cache, use the following format to reference the image in your Lambda Function, assuming your ECR Public pull through cache was prefixed "ecr-public".
+
+`${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/ecr-public/metaphor/awslb2cwlogs:arm64-latest`
+
+## Environment Variables
 The Lambda takes the following environment variables:
   - `LOG_GROUP_NAME`: The name of the Log Group to ship to
   - `LOAD_BALANCER_TYPE`: The load balancer type. Must be `classic`, `application` or `network`
   - `PLAINTEXT_LOGS`: If set to anything will ship the plaintext log line instead of parsing it to JSON
 
-The Lambda requires an IAM Policy similar to:
+## Identity & Access Management
+The Lambda requires access similar to the following IAM Policy:
 
 ```json
 {
@@ -50,6 +57,49 @@ The Lambda requires an IAM Policy similar to:
     }
   ]
 }
+```
+
+## Buffering S3 events with an SQS Queue
+The Lambda supports invocation via S3 events or SQS events. To use with SQS you will need a Queue, Queue Policy and Event Source similar to the following Cloudformation snippet:
+
+```yaml
+LogDeliveryQueue:
+  Type: AWS::SQS::Queue
+  DeletionPolicy: Delete
+  UpdateReplacePolicy: Delete
+  Properties:
+    QueueName: !Sub ${AWS::StackName}-logs
+    VisibilityTimeout: 180
+    MessageRetentionPeriod: 345600
+
+SQSQueuePolicy:
+  Type: AWS::SQS::QueuePolicy
+  Properties:
+    Queues:
+      - !Ref LogDeliveryQueue
+    PolicyDocument:
+      Version: 2012-10-17
+      Statement:
+        - Effect: Allow
+          Principal:
+            AWS: "*"
+          Action: sqs:SendMessage
+          Resource: "*"
+          Condition:
+            ArnLike:
+              aws:SourceArn: !Sub arn:${AWS::Partition}:s3:::${AWS::AccountId}-${AWS::StackName}
+
+LoggingSQSEventSource:
+  Type: AWS::Lambda::EventSourceMapping
+  Properties:
+    BatchSize: 10
+    Enabled: true
+    EventSourceArn: !GetAtt LogDeliveryQueue.Arn
+    FunctionName: !Ref LoadBalancerLogsToCloudWatchLambda
+    ScalingConfig:
+      MaximumConcurrency: 2
+    FunctionResponseTypes:
+      - ReportBatchItemFailures
 ```
 
 # Credits
