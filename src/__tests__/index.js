@@ -5,10 +5,9 @@ const {
   PutLogEventsCommand,
   DescribeLogStreamsCommand,
 } = require("@aws-sdk/client-cloudwatch-logs");
-const { readFileSync } = require("fs");
-const promisify = require("util").promisify;
-const gzip = require("zlib").gzip;
-const gzipAsync = promisify(gzip);
+const { createReadStream } = require("fs");
+const zlib = require("zlib");
+const { sdkStreamMixin } = require("@smithy/util-stream");
 
 const s3Mock = mockClient(S3Client);
 const cwLogsMock = mockClient(CloudWatchLogsClient);
@@ -27,11 +26,13 @@ async function setupTests(envVars, logType) {
 
   const logFile = logFileTests[envVars.LOAD_BALANCER_TYPE][logType].filename;
 
-  // Read the file from disk
-  const logFileContents = readFileSync(`${__dirname}/logs/${logFile}`);
+  // Read the file from disk and gzip compress the file
+  const gzippedLogFileContents = createReadStream(
+    `${__dirname}/logs/${logFile}`
+  ).pipe(zlib.createGzip());
 
-  // Gzip compress the file
-  const gzippedLogFileContents = await gzipAsync(logFileContents);
+  // AWS SDK Steam type
+  const sdkStream = sdkStreamMixin(gzippedLogFileContents);
 
   // Mock the S3 getObject command to return the contents of the fake log file
   s3Mock
@@ -40,7 +41,7 @@ async function setupTests(envVars, logType) {
       Key: logFile,
     })
     .resolves({
-      Body: gzippedLogFileContents,
+      Body: sdkStream,
     });
 
   // Mock the CloudWatch DescribeLogStreams command

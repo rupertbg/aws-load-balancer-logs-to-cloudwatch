@@ -82,7 +82,7 @@ async function getS3Object(Bucket, Key) {
   console.log(`Retrieving ${Bucket}${Key}`);
   const getObjectCommand = new GetObjectCommand({ Bucket, Key });
   const response = await s3.send(getObjectCommand);
-  return response.Body;
+  return await response.Body.transformToByteArray("utf-8");
 }
 
 async function unpackLogData(s3object) {
