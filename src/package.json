@@ -31,8 +31,8 @@
     "Elastic Load Balancer",
     "logs"
   ],
-  "author": "Rupert Bryant-Greene <ru@metaphor.cloud>",
-  "license": "MIT",
+  "author": "Rupert Bryant-Greene <rupertbg@users.noreply.github.com>",
+  "license": "ASL",
   "bugs": {
     "url": "https://github.com/rupertbg/aws-load-balancer-logs-to-cloudwatch/issues"
   },
