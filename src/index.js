@@ -8,9 +8,7 @@ const {
   CreateLogStreamCommand,
 } = require("@aws-sdk/client-cloudwatch-logs");
 const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
-const { gunzip } = require("zlib");
-const { promisify } = require("util");
-const gunzipAsync = promisify(gunzip);
+const zlib = require("zlib");
 const readline = require("readline");
 const { fields, fieldFunctions } = require("./logFields");
 
@@ -89,8 +87,25 @@ async function getS3Object(Bucket, Key) {
 
 async function unpackLogData(s3object) {
   console.log("Unzipping log file");
-  const uncompressedLogBuffer = await gunzipAsync(s3object);
-  return uncompressedLogBuffer.toString("ascii");
+  let result = "";
+  return new Promise((resolve, reject) => {
+    const bufferStream = new Readable();
+    const gunzip = zlib.createGunzip();
+    bufferStream.push(s3object);
+    bufferStream.push(null);
+    bufferStream.pipe(gunzip);
+    gunzip.on("data", (data) => {
+      result += data.toString();
+    });
+    gunzip.on("end", () => {
+      console.log("Unzipped log file");
+      resolve(result);
+    });
+    gunzip.on("error", (err) => {
+      console.log("Error unzipping log file: ", err, err.stack);
+      reject(err);
+    });
+  });
 }
 
 async function getLogStreamSequenceToken(logGroupName, logStreamName) {
