@@ -18,11 +18,15 @@ const logFileTests = require("./logFileTests.json");
 
 const { handler } = require("../index");
 
-async function setupTests(logFile, loadBalancerType) {
+async function setupTests(envVars, logType) {
   s3Mock.reset();
   cwLogsMock.reset();
-  process.env.LOG_GROUP_NAME = loadBalancerType;
-  process.env.LOAD_BALANCER_TYPE = loadBalancerType;
+  for (const envVar in envVars) {
+    process.env[envVar] = envVars[envVar];
+  }
+
+  const logFile = logFileTests[envVars.LOAD_BALANCER_TYPE][logType].filename;
+
   // Read the file from disk
   const logFileContents = readFileSync(`${__dirname}/logs/${logFile}`);
 
@@ -60,12 +64,22 @@ async function setupTests(logFile, loadBalancerType) {
   return logEventParamObjs;
 }
 
+async function runTest(envVars, logType, inputEvent) {
+  const loadBalancerType = envVars.LOAD_BALANCER_TYPE;
+  const logEventParamObjs = await setupTests(envVars, logType);
+  await handler(inputEvent);
+  expect(logEventParamObjs).toEqual(
+    logFileTests[loadBalancerType][logType].result
+  );
+}
+
 describe("log delivery", () => {
   for (let loadBalancerType in logFileTests) {
     for (let logType in logFileTests[loadBalancerType]) {
       const logFile = logFileTests[loadBalancerType][logType].filename;
       const s3Event = {
         eventSource: "aws:s3",
+        eventName: "ObjectCreated:Put",
         s3: {
           bucket: { name: mockBucketName },
           object: { key: logFile },
@@ -73,27 +87,35 @@ describe("log delivery", () => {
       };
       const sqsEvent = {
         eventSource: "aws:sqs",
-        body: JSON.stringify(s3Event),
+        body: JSON.stringify({
+          Records: [s3Event],
+        }),
       };
 
       let logEventParamObjs;
       it(`should deliver ${loadBalancerType} load balancer ${logType} logs correctly when called via s3`, async () => {
-        logEventParamObjs = await setupTests(logFile, loadBalancerType);
-        await handler({
-          Records: [s3Event],
-        });
-        expect(logEventParamObjs).toEqual(
-          logFileTests[loadBalancerType][logType].result
+        await runTest(
+          {
+            LOG_GROUP_NAME: loadBalancerType,
+            LOAD_BALANCER_TYPE: loadBalancerType,
+          },
+          logType,
+          {
+            Records: [s3Event],
+          }
         );
       });
 
       it(`should deliver ${loadBalancerType} load balancer ${logType} logs correctly when called via sqs`, async () => {
-        logEventParamObjs = await setupTests(logFile, loadBalancerType);
-        await handler({
-          Records: [sqsEvent],
-        });
-        expect(logEventParamObjs).toEqual(
-          logFileTests[loadBalancerType][logType].result
+        await runTest(
+          {
+            LOG_GROUP_NAME: loadBalancerType,
+            LOAD_BALANCER_TYPE: loadBalancerType,
+          },
+          logType,
+          {
+            Records: [sqsEvent],
+          }
         );
       });
     }
