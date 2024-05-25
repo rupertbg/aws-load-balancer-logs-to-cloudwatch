@@ -93,6 +93,20 @@ module.exports = {
   },
   fieldFunctions: {
     application: {
+      "client:port": (element, parsed) => {
+        const lastColonIndex = element.lastIndexOf(":");
+        const client_ip = element.slice(0, lastColonIndex);
+        const client_port = element.slice(lastColonIndex + 1);
+        parsed.client_ip = client_ip;
+        parsed.client_port = client_port;
+      },
+      "target:port": (element, parsed) => {
+        const lastColonIndex = element.lastIndexOf(":");
+        const target_ip = element.slice(0, lastColonIndex);
+        const target_port = element.slice(lastColonIndex + 1);
+        parsed.target_ip = target_ip;
+        parsed.target_port = target_port;
+      },
       request: (element, parsed) => {
         const [request_method, request_uri, request_http_version] =
           element.split(/\s+/);
