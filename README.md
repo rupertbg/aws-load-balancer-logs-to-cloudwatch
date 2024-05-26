@@ -11,7 +11,7 @@ Stream AWS Load Balancer Logs that are delivered to S3 into CloudWatch Logs for 
 
 ![Architecture Diagram](img/arch.png)
 
-Logs are loaded from S3 as they are created using an [S3 Event Notification](https://docs.aws.amazon.com/lambda/latest/dg/with-s3.html). The logs are then parsed into JSON format and shipped to Cloudwatch Logs.
+Logs are loaded from S3 as they are created using an [S3 Event Notification](https://docs.aws.amazon.com/lambda/latest/dg/with-s3.html), which can be optionally buffered via an SQS Queue. The logs are then parsed into JSON and shipped to Cloudwatch Logs.
 
 # Usage
 `cfn/example.yml` shows how to deploy the Lambda alongside Classic, Application or Network Load Balancers. Use this template as a starting point for your deployment.
