@@ -103,4 +103,6 @@ LoggingSQSEventSource:
 ```
 
 # Credits
-Based on https://github.com/amazon-archives/cloudwatch-logs-centralize-logs
+Maintained by [Rupert Bryant-Greene](https://github.com/rupertbg) of [Metaphor](https://github.com/metaphor-cloud)
+
+Originally derived from https://github.com/amazon-archives/cloudwatch-logs-centralize-logs
