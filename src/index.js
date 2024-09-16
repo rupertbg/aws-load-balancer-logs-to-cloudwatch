@@ -287,6 +287,10 @@ exports.handler = async (event) => {
         if (!batchItemFailures) batchItemFailures = [];
         try {
           const sqsRecordBody = JSON.parse(record?.body);
+          if (!sqsRecordBody?.Records) {
+            console.warn("No records found in SQS record body");
+            break;
+          }
           for (let s3Event of sqsRecordBody?.Records) {
             await processS3Record(s3Event, logGroupName, loadBalancerType);
           }
