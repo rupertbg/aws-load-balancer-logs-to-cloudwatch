@@ -135,6 +135,27 @@ async function getLogStreamSequenceToken(logGroupName, logStreamName) {
   return currentStream.uploadSequenceToken;
 }
 
+function finishBatch(batcher) {
+  batcher.batches.push(batcher.batch);
+  batcher.batch = [];
+  batcher.batch_size = 0;
+  return batcher;
+}
+
+function batchEvent(batcher, event) {
+  let newBatchSize = batcher.batch_size + event.length;
+  if (newBatchSize >= MAX_BATCH_SIZE) {
+    batcher = finishBatch(batcher);
+    newBatchSize = event.length;
+  } else if (batcher.batch.length >= MAX_BATCH_COUNT) {
+    batcher = finishBatch(batcher);
+    newBatchSize = event.length;
+  }
+  batcher.batch.push(event);
+  batcher.batch_size = newBatchSize;
+  return batcher;
+}
+
 function readLogLine(logType, batcher, line) {
   const loadBalancerType = getEnvVar(loadBalancerTypeEnvKey);
   let fieldNames = fields[loadBalancerType][logType];
@@ -153,19 +174,12 @@ function readLogLine(logType, batcher, line) {
     let ts = line.split(" ", timeIndex + 1)[timeIndex];
     if (!ts.endsWith("Z")) ts += "Z";
     const tval = Date.parse(ts);
-    const event_size = line.length + LOG_EVENT_OVERHEAD;
     const plaintextLogs = getEnvVar(plaintextLogsEnvKey);
     if (!plaintextLogs) line = JSON.stringify(parsed);
-    batcher.batch_size += event_size;
-    if (
-      batcher.batch_size >= MAX_BATCH_SIZE ||
-      batcher.batch.length >= MAX_BATCH_COUNT
-    ) {
-      batcher.batches.push(batcher.batch);
-      batcher.batch = [];
-      batcher.batch_size = event_size;
-    }
-    batcher.batch.push({ message: line, timestamp: tval });
+
+    const event = { message: line, timestamp: tval };
+    const event_size = JSON.stringify(event).length + LOG_EVENT_OVERHEAD;
+    batcher = batchEvent(batcher, event, event_size);
   } catch (err) {
     console.log("Error parsing line: ", err, err.stack);
   }
