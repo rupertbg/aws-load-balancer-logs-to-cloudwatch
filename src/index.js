@@ -12,7 +12,7 @@ const zlib = require("zlib");
 const readline = require("readline");
 const { fields, fieldFunctions } = require("./logFields");
 
-const MAX_BATCH_SIZE = 1048576;
+const MAX_BATCH_SIZE = 1000000;
 const MAX_BATCH_COUNT = 10000;
 const LOG_EVENT_OVERHEAD = 26;
 
@@ -209,6 +209,10 @@ async function processS3Record(record, logGroupName, loadBalancerType) {
 
   const key = decodeURIComponent(record?.s3?.object?.key?.replace(/\+/g, " "));
   if (!key) throw new Error("No key found in record");
+  if (key.endsWith("TestFile")) {
+    console.log("Ignoring test file");
+    return;
+  }
 
   const eventName = record?.eventName;
   if (!eventName) throw new Error("No event name found in record");
@@ -220,6 +224,10 @@ async function processS3Record(record, logGroupName, loadBalancerType) {
   const logStreamName = key;
   const s3object = await getS3Object(bucket, key);
   const logData = await unpackLogData(s3object);
+  if (!logData) {
+    console.warn("Unable to unpack log data");
+    return;
+  }
 
   let logType;
   switch (true) {

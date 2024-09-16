@@ -110,6 +110,8 @@ module.exports = {
       request: (element, parsed) => {
         const [request_method, request_uri, request_http_version] =
           element.split(/\s+/);
+        if (["-", "?"].includes(request_uri[request_uri.length - 1]))
+          request_uri = request_uri.slice(0, -1);
         parsed.request_method = request_method;
         parsed.request_uri = request_uri;
         parsed.request_http_version = request_http_version;
