@@ -136,23 +136,27 @@ async function getLogStreamSequenceToken(logGroupName, logStreamName) {
 }
 
 function finishBatch(batcher) {
-  batcher.batches.push(batcher.batch);
+  console.log(`Finished batch of size ${batcher.batch_size}`);
+  batcher.batches.push(new Array(...batcher.batch));
   batcher.batch = [];
   batcher.batch_size = 0;
   return batcher;
 }
 
 function batchEvent(batcher, event) {
-  let newBatchSize = batcher.batch_size + event.length;
+  const event_size = JSON.stringify(event).length + LOG_EVENT_OVERHEAD;
+  console.debug(`Batching event of size ${event_size}`);
+  let newBatchSize = batcher.batch_size + event_size;
   if (newBatchSize >= MAX_BATCH_SIZE) {
     batcher = finishBatch(batcher);
-    newBatchSize = event.length;
+    newBatchSize = event_size;
   } else if (batcher.batch.length >= MAX_BATCH_COUNT) {
     batcher = finishBatch(batcher);
-    newBatchSize = event.length;
+    newBatchSize = event_size;
   }
   batcher.batch.push(event);
   batcher.batch_size = newBatchSize;
+  batcher.batcher_size += event_size;
   return batcher;
 }
 
@@ -176,10 +180,8 @@ function readLogLine(logType, batcher, line) {
     const tval = Date.parse(ts);
     const plaintextLogs = getEnvVar(plaintextLogsEnvKey);
     if (!plaintextLogs) line = JSON.stringify(parsed);
-
     const event = { message: line, timestamp: tval };
-    const event_size = JSON.stringify(event).length + LOG_EVENT_OVERHEAD;
-    batcher = batchEvent(batcher, event, event_size);
+    batcher = batchEvent(batcher, event);
   } catch (err) {
     console.log("Error parsing line: ", err, err.stack);
   }
@@ -193,7 +195,7 @@ async function readLogClose(
 ) {
   batcher.batches.push(batcher.batch);
   console.log(
-    `Finished batching, pushing ${batcher.batches.length} batches to CloudWatch`
+    `Finished batching, pushing ${batcher.batches.length} batches (${batcher.batcher_size} bytes) to CloudWatch`
   );
   let seqToken = sequenceToken;
   let count = 0;
@@ -264,6 +266,7 @@ async function processS3Record(record, logGroupName, loadBalancerType) {
     batches: [],
     batch: [],
     batch_size: 0,
+    batcher_size: 0,
   };
   var bufferStream = new Readable();
   bufferStream.push(logData);
@@ -272,10 +275,17 @@ async function processS3Record(record, logGroupName, loadBalancerType) {
   await new Promise((resolve, reject) => {
     try {
       let rl = readline.createInterface({ input: bufferStream });
-      rl.on("line", (line) => readLogLine(logType, batcher, line));
+      let logLines = [];
+      rl.on("line", (line) => logLines.push(line));
       rl.on("close", async () => {
         console.log("Finished reading log lines");
+        logLines.sort();
+        for (let line of logLines) {
+          readLogLine(logType, batcher, line);
+        }
+        console.log("Finished parsing log lines");
         await readLogClose(batcher, logGroupName, logStreamName, sequenceToken);
+        console.log("Finished sending log lines");
         resolve();
       });
     } catch (err) {
