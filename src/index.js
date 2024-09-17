@@ -145,7 +145,6 @@ function finishBatch(batcher) {
 
 function batchEvent(batcher, event) {
   const event_size = JSON.stringify(event).length + LOG_EVENT_OVERHEAD;
-  console.debug(`Batching event of size ${event_size}`);
   let newBatchSize = batcher.batch_size + event_size;
   if (newBatchSize >= MAX_BATCH_SIZE) {
     batcher = finishBatch(batcher);
